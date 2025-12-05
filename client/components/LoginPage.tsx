@@ -1,34 +1,40 @@
 "use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { motion } from 'motion/react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Checkbox } from './ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Brain, ArrowLeft, Eye, EyeOff, User, Shield } from 'lucide-react';
+import React, { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { motion } from "motion/react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Checkbox } from "./ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import { Brain, ArrowLeft, Eye, EyeOff, User, Shield } from "lucide-react";
 
 export function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState('');
-  const [role, setRole] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("");
+  const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Handle login logic here
-    console.log('Login attempt:', { email, role, password, rememberMe });
-    router.push('/dashboard');
+    console.log("Login attempt:", { email, role, password, rememberMe });
+    router.push("/dashboard");
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-12">
+    <div className="min-h-screen flex items-center justify-center px-6 py-12 overflow-hidden">
       <motion.div
         className="w-full max-w-md"
         initial={{ opacity: 0, x: 100, scale: 0.9 }}
@@ -67,19 +73,23 @@ export function LoginPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.6 }}
         >
-          <Card className="bg-card/70 backdrop-blur-xl border-2 border-primary/20 shadow-2xl shadow-primary/10">
-            <CardHeader className="text-center pb-8">
+          <Card className="bg-card/80 backdrop-blur-md border border-border shadow-xl">
+            <CardHeader className="text-center pb-8 pt-10">
               <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.4, duration: 0.5 }}
               >
-                <CardTitle className="text-2xl font-bold mb-2">Welcome Back</CardTitle>
-                <p className="text-muted-foreground">Sign in to continue your AI journey</p>
+                <CardTitle className="text-3xl font-bold mb-3 tracking-tight text-foreground">
+                  Welcome Back
+                </CardTitle>
+                <p className="text-muted-foreground text-sm">
+                  Sign in to continue your AI journey
+                </p>
               </motion.div>
             </CardHeader>
-            
-            <CardContent>
+
+            <CardContent className="px-8 pb-10">
               <form onSubmit={handleSubmit} className="space-y-6">
                 <motion.div
                   className="space-y-2"
@@ -87,14 +97,16 @@ export function LoginPage() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.5 }}
                 >
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-muted-foreground ml-1">
+                    Email
+                  </Label>
                   <Input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter your email"
-                    className="bg-input-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300"
+                    className="h-12 rounded-xl bg-background text-foreground border-input focus:border-primary/50 focus:ring-primary/20 transition-all duration-300 placeholder:text-muted-foreground"
                     required
                   />
                 </motion.div>
@@ -105,35 +117,47 @@ export function LoginPage() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.6 }}
                 >
-                  <Label htmlFor="role">Role</Label>
-                    <Select
-                      value={role}
-                      onValueChange={(value: string) => setRole(value)}
-                      required
-                    >
-                    <SelectTrigger className="bg-input-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300">
+                  <Label htmlFor="role" className="text-muted-foreground ml-1">
+                    Role
+                  </Label>
+                  <Select
+                    value={role}
+                    onValueChange={(value: string) => setRole(value)}
+                    required
+                  >
+                    <SelectTrigger className="h-12 rounded-xl bg-background text-foreground border-input focus:border-primary/50 focus:ring-primary/20 transition-all duration-300">
                       <SelectValue placeholder="Select your role" />
                     </SelectTrigger>
-                    <SelectContent className="bg-card/95 backdrop-blur-xl border-border/50">
-                      <SelectItem value="client" className="cursor-pointer focus:bg-accent/10">
+                    <SelectContent className="bg-popover border-border text-popover-foreground">
+                      <SelectItem
+                        value="client"
+                        className="cursor-pointer focus:bg-accent focus:text-accent-foreground"
+                      >
                         <div className="flex items-center space-x-3 py-1">
-                          <div className="w-8 h-8 bg-gradient-to-br from-primary/20 to-accent/20 rounded-lg flex items-center justify-center">
+                          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
                             <User className="w-4 h-4 text-primary" />
                           </div>
                           <div className="flex flex-col">
                             <span className="font-medium">Client</span>
-                            <span className="text-xs text-muted-foreground">Access insights and reports</span>
+                            <span className="text-xs text-muted-foreground">
+                              Access insights and reports
+                            </span>
                           </div>
                         </div>
                       </SelectItem>
-                      <SelectItem value="admin" className="cursor-pointer focus:bg-accent/10">
+                      <SelectItem
+                        value="admin"
+                        className="cursor-pointer focus:bg-accent focus:text-accent-foreground"
+                      >
                         <div className="flex items-center space-x-3 py-1">
-                          <div className="w-8 h-8 bg-gradient-to-br from-accent/20 to-primary/20 rounded-lg flex items-center justify-center">
-                            <Shield className="w-4 h-4 text-accent" />
+                          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                            <Shield className="w-4 h-4 text-primary" />
                           </div>
                           <div className="flex flex-col">
                             <span className="font-medium">Admin</span>
-                            <span className="text-xs text-muted-foreground">Full system access</span>
+                            <span className="text-xs text-muted-foreground">
+                              Full system access
+                            </span>
                           </div>
                         </div>
                       </SelectItem>
@@ -147,7 +171,9 @@ export function LoginPage() {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.7 }}
                 >
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password" className="text-foreground ml-1">
+                    Password
+                  </Label>
                   <div className="relative">
                     <Input
                       id="password"
@@ -155,23 +181,27 @@ export function LoginPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter your password"
-                      className="bg-input-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300 pr-12"
+                      className="h-12 rounded-xl bg-background text-foreground border-input focus:border-primary/50 focus:ring-primary/20 transition-all duration-300 placeholder:text-muted-foreground"
                       required
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 hover:bg-transparent"
+                      className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 hover:bg-muted text-muted-foreground"
                       onClick={() => setShowPassword(!showPassword)}
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 </motion.div>
 
                 <motion.div
-                  className="flex items-center justify-between"
+                  className="flex items-center justify-between pt-2"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.8 }}
@@ -180,13 +210,22 @@ export function LoginPage() {
                     <Checkbox
                       id="remember"
                       checked={rememberMe}
-                      onCheckedChange={(checked: boolean | "indeterminate") => setRememberMe(checked === true)}
+                      onCheckedChange={(checked: boolean | "indeterminate") =>
+                        setRememberMe(checked === true)
+                      }
+                      className="border-input data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                     />
-                    <Label htmlFor="remember" className="text-sm cursor-pointer">
+                    <Label
+                      htmlFor="remember"
+                      className="text-sm cursor-pointer text-muted-foreground font-normal"
+                    >
                       Remember me
                     </Label>
                   </div>
-                  <Link href="/forgot-password" className="text-sm text-primary hover:text-primary/80">
+                  <Link
+                    href="/forgot-password"
+                    className="text-sm text-primary hover:text-primary/80 transition-colors"
+                  >
                     Forgot password?
                   </Link>
                 </motion.div>
@@ -195,10 +234,11 @@ export function LoginPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.9 }}
+                  className="pt-2"
                 >
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white py-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-primary/25"
+                    className="w-full h-12 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground font-semibold rounded-full shadow-lg shadow-primary/20 transition-all duration-300"
                   >
                     <motion.span
                       whileHover={{ scale: 1.02 }}
@@ -210,14 +250,17 @@ export function LoginPage() {
                 </motion.div>
 
                 <motion.div
-                  className="text-center"
+                  className="text-center pt-2"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.9 }}
                 >
-                  <p className="text-muted-foreground">
-                    Don't have an account?{' '}
-                    <Link href="/signup" className="text-primary hover:text-primary/80 font-medium">
+                  <p className="text-muted-foreground text-sm">
+                    Don't have an account?{" "}
+                    <Link
+                      href="/signup"
+                      className="text-primary hover:text-primary/80 font-medium transition-colors"
+                    >
                       Sign up
                     </Link>
                   </p>
@@ -237,7 +280,7 @@ export function LoginPage() {
           transition={{
             duration: 4,
             repeat: Infinity,
-            ease: "easeInOut"
+            ease: "easeInOut",
           }}
         />
         <motion.div
@@ -249,7 +292,7 @@ export function LoginPage() {
           transition={{
             duration: 3,
             repeat: Infinity,
-            ease: "easeInOut"
+            ease: "easeInOut",
           }}
         />
       </motion.div>

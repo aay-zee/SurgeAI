@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { motion } from 'motion/react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Progress } from './ui/progress';
-import { Brain, ArrowLeft, Eye, EyeOff, Check } from 'lucide-react';
+import React, { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { motion } from "motion/react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Progress } from "./ui/progress";
+import { Brain, ArrowLeft, Eye, EyeOff, Check } from "lucide-react";
 
 export function SignupPage() {
   const router = useRouter();
@@ -17,10 +17,10 @@ export function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: ''
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
   });
 
   const [passwordStrength, setPasswordStrength] = useState(0);
@@ -36,8 +36,8 @@ export function SignupPage() {
   };
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (field === 'password') {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (field === "password") {
       setPasswordStrength(checkPasswordStrength(value));
     }
   };
@@ -48,8 +48,8 @@ export function SignupPage() {
       setStep(2);
     } else {
       // Handle signup logic here
-      console.log('Signup attempt:', formData);
-      router.push('/dashboard');
+      console.log("Signup attempt:", formData);
+      router.push("/dashboard");
     }
   };
 
@@ -58,29 +58,37 @@ export function SignupPage() {
   const getPasswordStrengthText = () => {
     switch (passwordStrength) {
       case 0:
-      case 1: return 'Weak';
+      case 1:
+        return "Weak";
       case 2:
-      case 3: return 'Medium';
+      case 3:
+        return "Medium";
       case 4:
-      case 5: return 'Strong';
-      default: return '';
+      case 5:
+        return "Strong";
+      default:
+        return "";
     }
   };
 
   const getPasswordStrengthColor = () => {
     switch (passwordStrength) {
       case 0:
-      case 1: return 'bg-red-500';
+      case 1:
+        return "bg-red-500";
       case 2:
-      case 3: return 'bg-yellow-500';
+      case 3:
+        return "bg-yellow-500";
       case 4:
-      case 5: return 'bg-green-500';
-      default: return 'bg-gray-300';
+      case 5:
+        return "bg-green-500";
+      default:
+        return "bg-gray-300";
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 py-12">
+    <div className="min-h-screen flex items-center justify-center px-6 py-12 overflow-hidden">
       <motion.div
         className="w-full max-w-md"
         initial={{ opacity: 0, y: 50, scale: 0.9 }}
@@ -97,7 +105,7 @@ export function SignupPage() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => step === 1 ? router.push('/') : setStep(1)}
+            onClick={() => (step === 1 ? router.push("/") : setStep(1))}
             className="mr-4 hover:bg-accent/10"
           >
             <ArrowLeft className="h-5 w-5" />
@@ -120,8 +128,12 @@ export function SignupPage() {
           transition={{ delay: 0.3 }}
         >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-muted-foreground">Step {step} of 2</span>
-            <span className="text-sm text-muted-foreground">{Math.round(progress)}%</span>
+            <span className="text-sm text-muted-foreground">
+              Step {step} of 2
+            </span>
+            <span className="text-sm text-muted-foreground">
+              {Math.round(progress)}%
+            </span>
           </div>
           <Progress value={progress} className="h-2" />
         </motion.div>
@@ -134,23 +146,25 @@ export function SignupPage() {
           exit={{ opacity: 0, x: -50 }}
           transition={{ duration: 0.5 }}
         >
-          <Card className="bg-card/70 backdrop-blur-xl border-2 border-primary/20 shadow-2xl shadow-primary/10">
-            <CardHeader className="text-center pb-8">
+          <Card className="bg-card/80 backdrop-blur-md border border-border shadow-xl">
+            <CardHeader className="text-center pb-8 pt-10">
               <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ delay: 0.4, duration: 0.5 }}
               >
-                <CardTitle className="text-2xl font-bold mb-2">
-                  {step === 1 ? 'Create Account' : 'Secure Your Account'}
+                <CardTitle className="text-3xl font-bold mb-3 tracking-tight text-foreground">
+                  {step === 1 ? "Create Account" : "Secure Your Account"}
                 </CardTitle>
-                <p className="text-muted-foreground">
-                  {step === 1 ? 'Join thousands of users leveraging AI insights' : 'Set up your password and security'}
+                <p className="text-muted-foreground text-sm">
+                  {step === 1
+                    ? "Join thousands of users leveraging AI insights"
+                    : "Set up your password and security"}
                 </p>
               </motion.div>
             </CardHeader>
-            
-            <CardContent>
+
+            <CardContent className="px-8 pb-10">
               <form onSubmit={handleSubmit} className="space-y-6">
                 {step === 1 ? (
                   <>
@@ -160,14 +174,21 @@ export function SignupPage() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.5 }}
                     >
-                      <Label htmlFor="name">Full Name</Label>
+                      <Label
+                        htmlFor="name"
+                        className="text-muted-foreground ml-1"
+                      >
+                        Full Name
+                      </Label>
                       <Input
                         id="name"
                         type="text"
                         value={formData.name}
-                        onChange={(e) => handleInputChange('name', e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("name", e.target.value)
+                        }
                         placeholder="Enter your full name"
-                        className="bg-input-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300"
+                        className="h-12 rounded-xl bg-background text-foreground border-input focus:border-primary/50 focus:ring-primary/20 transition-all duration-300 placeholder:text-muted-foreground"
                         required
                       />
                     </motion.div>
@@ -178,14 +199,21 @@ export function SignupPage() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.6 }}
                     >
-                      <Label htmlFor="email">Email</Label>
+                      <Label
+                        htmlFor="email"
+                        className="text-muted-foreground ml-1"
+                      >
+                        Email
+                      </Label>
                       <Input
                         id="email"
                         type="email"
                         value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("email", e.target.value)
+                        }
                         placeholder="Enter your email"
-                        className="bg-input-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300"
+                        className="h-12 rounded-xl bg-background text-foreground border-input focus:border-primary/50 focus:ring-primary/20 transition-all duration-300 placeholder:text-muted-foreground"
                         required
                       />
                     </motion.div>
@@ -198,39 +226,52 @@ export function SignupPage() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.5 }}
                     >
-                      <Label htmlFor="password">Password</Label>
+                      <Label
+                        htmlFor="password"
+                        className="text-muted-foreground ml-1"
+                      >
+                        Password
+                      </Label>
                       <div className="relative">
                         <Input
                           id="password"
                           type={showPassword ? "text" : "password"}
                           value={formData.password}
-                          onChange={(e) => handleInputChange('password', e.target.value)}
+                          onChange={(e) =>
+                            handleInputChange("password", e.target.value)
+                          }
                           placeholder="Create a strong password"
-                          className="bg-input-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300 pr-12"
+                          className="h-12 rounded-xl bg-background text-foreground border-input focus:border-primary/50 focus:ring-primary/20 transition-all duration-300 pr-12 placeholder:text-muted-foreground"
                           required
                         />
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 hover:bg-transparent"
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 hover:bg-muted text-muted-foreground"
                           onClick={() => setShowPassword(!showPassword)}
                         >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                       {formData.password && (
                         <motion.div
                           className="mt-2"
                           initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
+                          animate={{ opacity: 1, height: "auto" }}
                           transition={{ duration: 0.3 }}
                         >
                           <div className="flex items-center space-x-2 mb-1">
-                            <div className="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+                            <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
                               <div
                                 className={`h-full transition-all duration-300 ${getPasswordStrengthColor()}`}
-                                style={{ width: `${(passwordStrength / 5) * 100}%` }}
+                                style={{
+                                  width: `${(passwordStrength / 5) * 100}%`,
+                                }}
                               />
                             </div>
                             <span className="text-xs text-muted-foreground">
@@ -247,25 +288,38 @@ export function SignupPage() {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.6 }}
                     >
-                      <Label htmlFor="confirmPassword">Confirm Password</Label>
+                      <Label
+                        htmlFor="confirmPassword"
+                        className="text-muted-foreground ml-1"
+                      >
+                        Confirm Password
+                      </Label>
                       <div className="relative">
                         <Input
                           id="confirmPassword"
                           type={showConfirmPassword ? "text" : "password"}
                           value={formData.confirmPassword}
-                          onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                          onChange={(e) =>
+                            handleInputChange("confirmPassword", e.target.value)
+                          }
                           placeholder="Confirm your password"
-                          className="bg-input-background/50 border-border/50 focus:border-primary/50 focus:ring-primary/20 transition-all duration-300 pr-12"
+                          className="h-12 rounded-xl bg-background text-foreground border-input focus:border-primary/50 focus:ring-primary/20 transition-all duration-300 pr-12 placeholder:text-muted-foreground"
                           required
                         />
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 hover:bg-transparent"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 hover:bg-muted text-muted-foreground"
+                          onClick={() =>
+                            setShowConfirmPassword(!showConfirmPassword)
+                          }
                         >
-                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {showConfirmPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                       {formData.confirmPassword && (
@@ -276,11 +330,15 @@ export function SignupPage() {
                         >
                           {formData.password === formData.confirmPassword ? (
                             <>
-                              <Check className="h-4 w-4 text-green-500" />
-                              <span className="text-xs text-green-500">Passwords match</span>
+                              <Check className="h-4 w-4 text-emerald-500" />
+                              <span className="text-xs text-emerald-500">
+                                Passwords match
+                              </span>
                             </>
                           ) : (
-                            <span className="text-xs text-red-500">Passwords don't match</span>
+                            <span className="text-xs text-rose-500">
+                              Passwords don't match
+                            </span>
                           )}
                         </motion.div>
                       )}
@@ -292,30 +350,38 @@ export function SignupPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.7 }}
+                  className="pt-2"
                 >
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white py-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-primary/25"
-                    disabled={step === 2 && (formData.password !== formData.confirmPassword || passwordStrength < 2)}
+                    className="w-full h-12 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold rounded-full shadow-lg shadow-blue-500/20 transition-all duration-300"
+                    disabled={
+                      step === 2 &&
+                      (formData.password !== formData.confirmPassword ||
+                        passwordStrength < 2)
+                    }
                   >
                     <motion.span
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      {step === 1 ? 'Continue' : 'Create Account'}
+                      {step === 1 ? "Continue" : "Create Account"}
                     </motion.span>
                   </Button>
                 </motion.div>
 
                 <motion.div
-                  className="text-center"
+                  className="text-center pt-2"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.8 }}
                 >
-                  <p className="text-muted-foreground">
-                    Already have an account?{' '}
-                    <Link href="/login" className="text-primary hover:text-primary/80 font-medium">
+                  <p className="text-muted-foreground text-sm">
+                    Already have an account?{" "}
+                    <Link
+                      href="/login"
+                      className="text-primary hover:text-primary/80 font-medium transition-colors"
+                    >
                       Sign in
                     </Link>
                   </p>
@@ -335,7 +401,7 @@ export function SignupPage() {
           transition={{
             duration: 8,
             repeat: Infinity,
-            ease: "easeInOut"
+            ease: "easeInOut",
           }}
         />
         <motion.div
@@ -347,7 +413,7 @@ export function SignupPage() {
           transition={{
             duration: 5,
             repeat: Infinity,
-            ease: "easeInOut"
+            ease: "easeInOut",
           }}
         />
       </motion.div>

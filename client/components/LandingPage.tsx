@@ -1,57 +1,84 @@
 "use client";
 
-import React from 'react';
-import Link from 'next/link';
+import React from "react";
+import Link from "next/link";
 import { motion } from "motion/react";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
-import { Brain, TrendingUp, Zap, ChevronRight, Star, Check, Mail, Phone, MapPin } from "lucide-react";  
+import {
+  Brain,
+  TrendingUp,
+  Zap,
+  ChevronRight,
+  Star,
+  Check,
+  Mail,
+  Phone,
+  MapPin,
+} from "lucide-react";
 
 export function LandingPage() {
-
   const features = [
     {
       icon: Brain,
       title: "AI-Powered Analysis",
-      description: "Advanced machine learning algorithms analyze your data to uncover hidden patterns and insights."
+      description:
+        "Advanced machine learning algorithms analyze your data to uncover hidden patterns and insights.",
     },
     {
       icon: Zap,
       title: "Smart Insights",
-      description: "Get intelligent recommendations and actionable insights tailored to your business needs."
+      description:
+        "Get intelligent recommendations and actionable insights tailored to your business needs.",
     },
     {
       icon: TrendingUp,
       title: "Real-Time Trend Tracking",
-      description: "Monitor market trends and opportunities as they emerge with real-time data processing."
-    }
+      description:
+        "Monitor market trends and opportunities as they emerge with real-time data processing.",
+    },
   ];
 
   const steps = [
-    { number: "01", title: "Connect Your Data", description: "Seamlessly integrate your existing data sources" },
-    { number: "02", title: "AI Analysis", description: "Our AI processes and analyzes your information" },
-    { number: "03", title: "Get Insights", description: "Receive actionable insights and growth opportunities" }
+    {
+      number: "01",
+      title: "Connect Your Data",
+      description: "Seamlessly integrate your existing data sources",
+    },
+    {
+      number: "02",
+      title: "AI Analysis",
+      description: "Our AI processes and analyzes your information",
+    },
+    {
+      number: "03",
+      title: "Get Insights",
+      description: "Receive actionable insights and growth opportunities",
+    },
   ];
 
   const testimonials = [
     {
       name: "Sarah Chen",
       role: "CEO, TechFlow",
-      content: "SurgeAI transformed how we identify growth opportunities. The insights are incredibly accurate.",
-      rating: 5
+      content:
+        "SurgeAI transformed how we identify growth opportunities. The insights are incredibly accurate.",
+      rating: 5,
     },
     {
       name: "Marcus Rodriguez",
       role: "Data Director, InnovateCorp",
-      content: "The AI-powered analysis saved us weeks of manual research. Highly recommended!",
-      rating: 5
+      content:
+        "The AI-powered analysis saved us weeks of manual research. Highly recommended!",
+      rating: 5,
     },
     {
       name: "Emily Watson",
       role: "Strategy Lead, GrowthLab",
-      content: "Real-time trend tracking has given us a competitive edge we never had before.",
-      rating: 5
-    }
+      content:
+        "Real-time trend tracking has given us a competitive edge we never had before.",
+      rating: 5,
+    },
   ];
 
   const pricingPlans = [
@@ -65,9 +92,9 @@ export function LandingPage() {
         "Basic AI analysis",
         "Weekly reports",
         "Email support",
-        "1 user account"
+        "1 user account",
       ],
-      highlighted: false
+      highlighted: false,
     },
     {
       name: "Professional",
@@ -81,9 +108,9 @@ export function LandingPage() {
         "Priority support",
         "Up to 10 users",
         "Custom integrations",
-        "API access"
+        "API access",
       ],
-      highlighted: true
+      highlighted: true,
     },
     {
       name: "Enterprise",
@@ -97,10 +124,10 @@ export function LandingPage() {
         "Custom AI training",
         "Unlimited users",
         "On-premise deployment",
-        "24/7 phone support"
+        "24/7 phone support",
       ],
-      highlighted: false
-    }
+      highlighted: false,
+    },
   ];
 
   return (
@@ -123,20 +150,15 @@ export function LandingPage() {
             SurgeAI
           </span>
         </motion.div>
-        
+
         <div className="flex items-center space-x-4 mr-16">
           <Link href="/login">
-            <Button
-              variant="ghost"
-              className="hover:bg-accent/10"
-            >
+            <Button variant="ghost" className="hover:bg-accent/10">
               Sign In
             </Button>
           </Link>
           <Link href="/signup">
-            <Button
-              className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white"
-            >
+            <Button className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white">
               Get Started
             </Button>
           </Link>
@@ -159,14 +181,15 @@ export function LandingPage() {
           >
             Empower Your Ideas with AI Insights
           </motion.h1>
-          
+
           <motion.p
             className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.8, delay: 0.5 }}
           >
-            SurgeAI helps you analyze conversations, spot trends, and turn data into growth.
+            SurgeAI helps you analyze conversations, spot trends, and turn data
+            into growth.
           </motion.p>
 
           <motion.div
@@ -206,7 +229,7 @@ export function LandingPage() {
           transition={{
             duration: 20,
             repeat: Infinity,
-            ease: "linear"
+            ease: "linear",
           }}
         >
           <div className="w-96 h-96 opacity-10">
@@ -233,7 +256,7 @@ export function LandingPage() {
           >
             Powerful Features for Smart Decisions
           </motion.h2>
-          
+
           <div className="grid md:grid-cols-3 gap-8">
             {features.map((feature, index) => (
               <motion.div
@@ -254,7 +277,9 @@ export function LandingPage() {
                       <feature.icon className="w-8 h-8 text-white" />
                     </motion.div>
                     <h3 className="text-xl font-bold mb-4">{feature.title}</h3>
-                    <p className="text-muted-foreground leading-relaxed">{feature.description}</p>
+                    <p className="text-muted-foreground leading-relaxed">
+                      {feature.description}
+                    </p>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -264,7 +289,7 @@ export function LandingPage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="px-6 py-20 bg-gradient-to-r from-secondary/30 to-accent/10">
+      <section className="px-6 py-20">
         <motion.div
           className="max-w-6xl mx-auto"
           initial={{ opacity: 0 }}
@@ -281,7 +306,7 @@ export function LandingPage() {
           >
             How It Works
           </motion.h2>
-          
+
           <div className="grid md:grid-cols-3 gap-12">
             {steps.map((step, index) => (
               <motion.div
@@ -301,7 +326,7 @@ export function LandingPage() {
                 </motion.div>
                 <h3 className="text-xl font-bold mb-4">{step.title}</h3>
                 <p className="text-muted-foreground">{step.description}</p>
-                
+
                 {index < steps.length - 1 && (
                   <motion.div
                     className="hidden md:block absolute top-10 left-full w-12 h-0.5 bg-gradient-to-r from-primary to-accent"
@@ -335,7 +360,7 @@ export function LandingPage() {
           >
             What Our Users Say
           </motion.h2>
-          
+
           <div className="grid md:grid-cols-3 gap-8">
             {testimonials.map((testimonial, index) => (
               <motion.div
@@ -350,13 +375,20 @@ export function LandingPage() {
                   <CardContent className="p-8">
                     <div className="flex mb-4">
                       {[...Array(testimonial.rating)].map((_, i) => (
-                        <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
+                        <Star
+                          key={i}
+                          className="w-5 h-5 fill-yellow-400 text-yellow-400"
+                        />
                       ))}
                     </div>
-                    <p className="text-muted-foreground mb-6 italic">"{testimonial.content}"</p>
+                    <p className="text-muted-foreground mb-6 italic">
+                      "{testimonial.content}"
+                    </p>
                     <div>
                       <p className="font-bold">{testimonial.name}</p>
-                      <p className="text-sm text-muted-foreground">{testimonial.role}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {testimonial.role}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
@@ -367,7 +399,7 @@ export function LandingPage() {
       </section>
 
       {/* Pricing Section */}
-      <section className="px-6 py-20 bg-gradient-to-r from-secondary/20 to-accent/5">
+      <section className="px-6 py-20">
         <motion.div
           className="max-w-6xl mx-auto"
           initial={{ opacity: 0 }}
@@ -382,12 +414,15 @@ export function LandingPage() {
             transition={{ duration: 0.6 }}
             viewport={{ once: true }}
           >
-            <h2 className="text-4xl font-bold mb-4">Simple, Transparent Pricing</h2>
+            <h2 className="text-4xl font-bold mb-4">
+              Simple, Transparent Pricing
+            </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Choose the perfect plan to unlock AI-powered insights for your business
+              Choose the perfect plan to unlock AI-powered insights for your
+              business
             </p>
           </motion.div>
-          
+
           <div className="grid md:grid-cols-3 gap-8">
             {pricingPlans.map((plan, index) => (
               <motion.div
@@ -400,7 +435,7 @@ export function LandingPage() {
                 className="relative"
               >
                 {plan.highlighted && (
-                  <motion.div 
+                  <motion.div
                     className="absolute -top-4 left-1/2 transform -translate-x-1/2 z-10"
                     initial={{ opacity: 0, y: -10 }}
                     whileInView={{ opacity: 1, y: 0 }}
@@ -412,21 +447,29 @@ export function LandingPage() {
                     </div>
                   </motion.div>
                 )}
-                <Card className={`h-full bg-card/70 backdrop-blur-sm transition-all duration-300 relative ${
-                  plan.highlighted 
-                    ? 'border-2 border-primary/50 shadow-2xl shadow-primary/10 mt-2' 
-                    : 'border-border/50 hover:bg-card/90'
-                }`}>
+                <Card
+                  className={`h-full bg-card/70 backdrop-blur-sm transition-all duration-300 relative ${
+                    plan.highlighted
+                      ? "border-2 border-primary/50 shadow-2xl shadow-primary/10 mt-2"
+                      : "border-border/50 hover:bg-card/90"
+                  }`}
+                >
                   <CardContent className="p-8 flex flex-col h-full">
                     <div className="text-center mb-8">
                       <h3 className="text-2xl font-bold mb-2">{plan.name}</h3>
-                      <p className="text-muted-foreground mb-6 min-h-[3rem] flex items-center justify-center">{plan.description}</p>
+                      <p className="text-muted-foreground mb-6 min-h-[3rem] flex items-center justify-center">
+                        {plan.description}
+                      </p>
                       <div className="flex items-baseline justify-center mb-2">
-                        <span className="text-4xl font-bold">${plan.price}</span>
-                        <span className="text-muted-foreground ml-2">/{plan.period}</span>
+                        <span className="text-4xl font-bold">
+                          ${plan.price}
+                        </span>
+                        <span className="text-muted-foreground ml-2">
+                          /{plan.period}
+                        </span>
                       </div>
                     </div>
-                    
+
                     <ul className="space-y-4 mb-8 flex-grow">
                       {plan.features.map((feature, featureIndex) => (
                         <motion.li
@@ -434,15 +477,20 @@ export function LandingPage() {
                           className="flex items-start space-x-3"
                           initial={{ opacity: 0, x: -20 }}
                           whileInView={{ opacity: 1, x: 0 }}
-                          transition={{ duration: 0.3, delay: (index * 0.2) + (featureIndex * 0.1) }}
+                          transition={{
+                            duration: 0.3,
+                            delay: index * 0.2 + featureIndex * 0.1,
+                          }}
                           viewport={{ once: true }}
                         >
                           <Check className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                          <span className="text-sm leading-relaxed">{feature}</span>
+                          <span className="text-sm leading-relaxed">
+                            {feature}
+                          </span>
                         </motion.li>
                       ))}
                     </ul>
-                    
+
                     <motion.div
                       className="mt-auto"
                       whileHover={{ scale: 1.02 }}
@@ -452,8 +500,8 @@ export function LandingPage() {
                         <Button
                           className={`w-full py-3 rounded-xl transition-all duration-300 ${
                             plan.highlighted
-                              ? 'bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30'
-                              : 'bg-card hover:bg-accent/10 border-2 border-border/50 hover:border-primary/30 text-foreground hover:text-primary'
+                              ? "bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30"
+                              : "bg-card hover:bg-accent/10 border-2 border-border/50 hover:border-primary/30 text-foreground hover:text-primary"
                           }`}
                         >
                           Get Started
@@ -486,10 +534,11 @@ export function LandingPage() {
           >
             <h2 className="text-4xl font-bold mb-4">Get In Touch</h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Ready to transform your business with AI insights? Let's talk about your needs.
+              Ready to transform your business with AI insights? Let's talk
+              about your needs.
             </p>
           </motion.div>
-          
+
           <div className="grid md:grid-cols-2 gap-12">
             {/* Contact Form */}
             <motion.div
@@ -504,50 +553,60 @@ export function LandingPage() {
                   <form className="space-y-6">
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">First Name</label>
+                        <label className="block text-sm font-medium mb-2">
+                          First Name
+                        </label>
                         <input
                           type="text"
-                          className="w-full px-4 py-3 bg-input-background/50 border border-border/50 rounded-xl focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-300"
+                          className="w-full px-4 py-3 bg-background text-foreground border border-border/50 rounded-xl focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-300"
                           placeholder="John"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">Last Name</label>
+                        <label className="block text-sm font-medium mb-2">
+                          Last Name
+                        </label>
                         <input
                           type="text"
-                          className="w-full px-4 py-3 bg-input-background/50 border border-border/50 rounded-xl focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-300"
+                          className="w-full px-4 py-3 bg-background text-foreground border border-border/50 rounded-xl focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-300"
                           placeholder="Doe"
                         />
                       </div>
                     </div>
-                    
+
                     <div>
-                      <label className="block text-sm font-medium mb-2">Email</label>
+                      <label className="block text-sm font-medium mb-2">
+                        Email
+                      </label>
                       <input
                         type="email"
-                        className="w-full px-4 py-3 bg-input-background/50 border border-border/50 rounded-xl focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-300"
+                        className="w-full px-4 py-3 bg-background text-foreground border border-border/50 rounded-xl focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-300"
                         placeholder="john@company.com"
                       />
                     </div>
-                    
+
                     <div>
-                      <label className="block text-sm font-medium mb-2">Company</label>
+                      <label className="block text-sm font-medium mb-2">
+                        Company
+                      </label>
                       <input
                         type="text"
-                        className="w-full px-4 py-3 bg-input-background/50 border border-border/50 rounded-xl focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-300"
+                        className="w-full px-4 py-3 bg-background text-foreground border border-border/50 rounded-xl focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-300"
                         placeholder="Your Company"
                       />
                     </div>
-                    
+
                     <div>
-                      <label className="block text-sm font-medium mb-2">Message</label>
+                      <label className="block text-sm font-medium mb-2">
+                        Message
+                      </label>
                       <textarea
                         rows={4}
-                        className="w-full px-4 py-3 bg-input-background/50 border border-border/50 rounded-xl focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-300 resize-none"
+                        className="w-full px-4 py-3 bg-background text-foreground border border-border/50 rounded-xl focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-300 resize-none"
                         placeholder="Tell us about your project and how we can help..."
                       />
                     </div>
-                    
+
                     <Button className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white py-3 rounded-xl transition-all duration-300 hover:shadow-lg hover:shadow-primary/25">
                       Send Message
                     </Button>
@@ -555,7 +614,7 @@ export function LandingPage() {
                 </CardContent>
               </Card>
             </motion.div>
-            
+
             {/* Contact Information */}
             <motion.div
               initial={{ opacity: 0, x: 50 }}
@@ -567,11 +626,11 @@ export function LandingPage() {
               <div>
                 <h3 className="text-2xl font-bold mb-6">Contact Information</h3>
                 <p className="text-muted-foreground mb-8">
-                  We're here to help you unlock the power of AI for your business. 
-                  Reach out through any of these channels.
+                  We're here to help you unlock the power of AI for your
+                  business. Reach out through any of these channels.
                 </p>
               </div>
-              
+
               <div className="space-y-6">
                 <motion.div
                   className="flex items-center space-x-4"
@@ -586,7 +645,7 @@ export function LandingPage() {
                     <p className="text-muted-foreground">hello@surgeai.com</p>
                   </div>
                 </motion.div>
-                
+
                 <motion.div
                   className="flex items-center space-x-4"
                   whileHover={{ x: 10 }}
@@ -600,7 +659,7 @@ export function LandingPage() {
                     <p className="text-muted-foreground">+1 (555) 123-4567</p>
                   </div>
                 </motion.div>
-                
+
                 <motion.div
                   className="flex items-center space-x-4"
                   whileHover={{ x: 10 }}
@@ -615,22 +674,23 @@ export function LandingPage() {
                   </div>
                 </motion.div>
               </div>
-              
+
               <Card className="bg-gradient-to-br from-primary/10 to-accent/10 border-primary/20">
                 <CardContent className="p-6">
                   <h4 className="font-bold mb-2">Enterprise Solutions</h4>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Need a custom solution? Our enterprise team is ready to discuss 
-                    your specific requirements and create a tailored AI strategy.
+                    Need a custom solution? Our enterprise team is ready to
+                    discuss your specific requirements and create a tailored AI
+                    strategy.
                   </p>
-                    <Link href="/signup" className="w-full">
-                      <Button
-                        variant="outline"
-                        className="w-full border-2 border-primary/30 hover:bg-primary/10"
-                      >
-                        Schedule a Demo
-                      </Button>
-                    </Link>
+                  <Link href="/signup" className="w-full">
+                    <Button
+                      variant="outline"
+                      className="w-full border-2 border-primary/30 hover:bg-primary/10"
+                    >
+                      Schedule a Demo
+                    </Button>
+                  </Link>
                 </CardContent>
               </Card>
             </motion.div>
