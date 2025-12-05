@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+pydantic
+celery
+redis
+praw # Python Reddit API Wrapper
+python-dotenv
