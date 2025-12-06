@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from . import models, schemas, crud
@@ -7,6 +7,7 @@ from .database import engine, SessionLocal
 from tasks.celery_worker import celery_app
 celery_app.set_default()
 from tasks.reddit_scraper import scrape_reddit_for_campaign
+from tasks.twitter.scraper import scrape_twitter_for_campaign
 
 #All the db tables are beung created here
 models.Base.metadata.create_all(bind=engine)
@@ -62,3 +63,17 @@ def list_scraped_data(campaign_id: int, db: Session = Depends(get_db)):
     Returns recent scraped data rows for a campaign. Useful for UI polling.
     """
     return crud.get_scraped_data_for_campaign(db, campaign_id, limit=200)
+
+
+@app.post("/campaigns/{campaign_id}/scrape/twitter", status_code=202)
+def trigger_twitter_scrape(campaign_id: int, db: Session = Depends(get_db)):
+    """
+    Triggers a background Twitter scraping task for an existing campaign.
+    Keeps the default Reddit flow untouched.
+    """
+    campaign = crud.get_campaign(db, campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Campaign not found")
+
+    scrape_twitter_for_campaign.delay(campaign_id)
+    return {"detail": "Twitter scraping started", "campaign_id": campaign_id}
