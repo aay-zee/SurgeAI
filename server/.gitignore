@@ -25,3 +25,4 @@ logs/
 dist/
 build/
 *.egg-info/
+test_all.sh
