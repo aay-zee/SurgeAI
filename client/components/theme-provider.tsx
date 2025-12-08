@@ -5,7 +5,8 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 type Theme = "light" | "dark";
 
 interface ThemeContextType {
-  theme: Theme;
+  theme: Theme; // for your existing client UI
+  isDark: boolean; // for SurgeAI dashboard components
   toggleTheme: () => void;
 }
 
@@ -16,27 +17,47 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    // Check for saved theme preference or default to light mode
-    const savedTheme = localStorage.getItem("theme") as Theme;
-    const prefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)"
-    ).matches;
-    const initialTheme = savedTheme || (prefersDark ? "dark" : "light");
+    // Defer state updates to avoid synchronous setState inside the effect
+    const id = setTimeout(() => {
+      setMounted(true);
 
-    setTheme(initialTheme);
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
+      // Check saved theme or system preference
+      const savedTheme = localStorage.getItem("theme") as Theme;
+      const prefersDark = window.matchMedia(
+        "(prefers-color-scheme: dark)"
+      ).matches;
+
+      const initialTheme = savedTheme || (prefersDark ? "dark" : "light");
+
+      setTheme(initialTheme);
+      document.documentElement.classList.toggle(
+        "dark",
+        initialTheme === "dark"
+      );
+    }, 0);
+
+    return () => clearTimeout(id);
   }, []);
 
   const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
+    const newTheme: Theme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
+
     document.documentElement.classList.toggle("dark", newTheme === "dark");
     localStorage.setItem("theme", newTheme);
   };
 
+  // Prevent theme flicker (FOUC)
+  if (!mounted) return null;
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+    <ThemeContext.Provider
+      value={{
+        theme,
+        isDark: theme === "dark",
+        toggleTheme,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );
@@ -44,7 +65,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
 export function useTheme() {
   const context = useContext(ThemeContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useTheme must be used within a ThemeProvider");
   }
   return context;

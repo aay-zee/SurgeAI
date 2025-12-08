@@ -4,6 +4,17 @@
 /node_modules
 /.pnp
 .pnp.*
+.turbo
+
+# package managers
+.npmrc
+.pnpm-debug.log*
+.pnpm-store/**
+.pnpm-lock.yaml
+# lockfiles are usually committed; uncomment if you intentionally ignore
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
@@ -16,13 +27,30 @@
 # next.js
 /.next/
 /out/
+/server/
+/static/
+/dev/
+/diagnostics/
 
 # production
 /build
 
+# build artifacts
+dist/
+*.nft.json
+trace/
+trace-build/
+
 # misc
 .DS_Store
 *.pem
+Thumbs.db
+client.zip
+
+# IDE/editor
+.vscode/
+.idea/
+.history/
 
 # debug
 npm-debug.log*
@@ -32,6 +60,11 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # vercel
 .vercel
@@ -39,3 +72,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# images and cache
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+/.cache/

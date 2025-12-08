@@ -1,26 +1,26 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Brain, ArrowLeft, Mail, CheckCircle } from 'lucide-react';
-import Link from 'next/link';
+import React, { useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import { Brain, ArrowLeft, Mail, CheckCircle } from "lucide-react";
+import Link from "next/link";
 
 export function ForgotPasswordPage() {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
     setIsLoading(false);
     setIsSubmitted(true);
   };
@@ -89,7 +89,11 @@ export function ForgotPasswordPage() {
                         key="check"
                         initial={{ scale: 0.8, opacity: 0, rotate: -180 }}
                         animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                        transition={{ duration: 0.5, type: "spring", stiffness: 200 }}
+                        transition={{
+                          duration: 0.5,
+                          type: "spring",
+                          stiffness: 200,
+                        }}
                       >
                         <CheckCircle className="w-8 h-8 text-white" />
                       </motion.div>
@@ -97,17 +101,16 @@ export function ForgotPasswordPage() {
                   </AnimatePresence>
                 </div>
                 <CardTitle className="text-2xl font-bold mb-2">
-                  {!isSubmitted ? 'Forgot Password?' : 'Check Your Email'}
+                  {!isSubmitted ? "Forgot Password?" : "Check Your Email"}
                 </CardTitle>
                 <p className="text-muted-foreground">
-                  {!isSubmitted 
-                    ? 'No worries! Enter your email and we\'ll send you a reset link.'
-                    : `We've sent a password reset link to ${email}`
-                  }
+                  {!isSubmitted
+                    ? "No worries! Enter your email and we'll send you a reset link."
+                    : `We've sent a password reset link to ${email}`}
                 </p>
               </motion.div>
             </CardHeader>
-            
+
             <CardContent>
               <AnimatePresence mode="wait">
                 {!isSubmitted ? (
@@ -158,12 +161,16 @@ export function ForgotPasswordPage() {
                               <motion.div
                                 className="w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2"
                                 animate={{ rotate: 360 }}
-                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                                transition={{
+                                  duration: 1,
+                                  repeat: Infinity,
+                                  ease: "linear",
+                                }}
                               />
                               Sending...
                             </>
                           ) : (
-                            'Send Reset Link'
+                            "Send Reset Link"
                           )}
                         </motion.div>
                       </Button>
@@ -176,7 +183,7 @@ export function ForgotPasswordPage() {
                       transition={{ delay: 0.7 }}
                     >
                       <p className="text-muted-foreground">
-                        Remember your password?{' '}
+                        Remember your password?{" "}
                         <Link href="/login">
                           <Button
                             variant="link"
@@ -203,10 +210,12 @@ export function ForgotPasswordPage() {
                       transition={{ delay: 0.2 }}
                     >
                       <p className="text-muted-foreground">
-                        If an account with that email exists, you'll receive a password reset link shortly.
+                        If an account with that email exists, you'll receive a
+                        password reset link shortly.
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        Didn't receive the email? Check your spam folder or try again.
+                        Didn't receive the email? Check your spam folder or try
+                        again.
                       </p>
                     </motion.div>
 
@@ -224,9 +233,7 @@ export function ForgotPasswordPage() {
                         Try Another Email
                       </Button>
                       <Link href="/login">
-                        <Button
-                          className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white py-3 rounded-xl transition-all duration-300"
-                        >
+                        <Button className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white py-3 rounded-xl transition-all duration-300">
                           Back to Sign In
                         </Button>
                       </Link>
@@ -248,7 +255,7 @@ export function ForgotPasswordPage() {
           transition={{
             duration: 4,
             repeat: Infinity,
-            ease: "easeInOut"
+            ease: "easeInOut",
           }}
         />
         <motion.div
@@ -260,7 +267,7 @@ export function ForgotPasswordPage() {
           transition={{
             duration: 3,
             repeat: Infinity,
-            ease: "easeInOut"
+            ease: "easeInOut",
           }}
         />
 
@@ -270,18 +277,18 @@ export function ForgotPasswordPage() {
             <motion.div
               className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 -z-10"
               initial={{ scale: 0, rotate: -45, opacity: 0 }}
-              animate={{ 
+              animate={{
                 scale: [0, 1.2, 1],
                 rotate: [-45, 0, 15],
                 opacity: [0, 1, 0.3],
                 x: [0, 200, 400],
-                y: [0, -50, -100]
+                y: [0, -50, -100],
               }}
               exit={{ opacity: 0 }}
-              transition={{ 
+              transition={{
                 duration: 3,
                 times: [0, 0.3, 1],
-                ease: "easeOut"
+                ease: "easeOut",
               }}
             >
               <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-sm transform rotate-45">

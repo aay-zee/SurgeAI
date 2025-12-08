@@ -1,16 +1,23 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { motion } from 'motion/react';
-import { Sun, Moon } from 'lucide-react';
-import { Button } from './ui/button';
-import { useTheme } from './theme-provider';
+import React from "react";
+import { motion } from "motion/react";
+import { Sun, Moon } from "lucide-react";
+import { Button } from "./ui/button";
+import { useTheme } from "./theme-provider";
+
+import { usePathname } from "next/navigation";
 
 export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
+  const pathname = usePathname();
+
+  if (pathname?.startsWith("/client") || pathname?.startsWith("/admin")) {
+    return null;
+  }
 
   return (
-    <motion.div 
+    <motion.div
       className="fixed top-6 right-6 z-50"
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -24,10 +31,14 @@ export function ThemeToggle() {
       >
         <motion.div
           initial={false}
-          animate={{ rotate: theme === 'dark' ? 180 : 0 }}
+          animate={{ rotate: theme === "dark" ? 180 : 0 }}
           transition={{ duration: 0.3 }}
         >
-          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === "dark" ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
         </motion.div>
       </Button>
     </motion.div>

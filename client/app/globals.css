@@ -2,39 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
+/* -------------------------------------------------------------
+   Root Variables (Merged: Your existing + SurgeAI new variables)
+-------------------------------------------------------------- */
 @layer base {
   :root {
     --font-size: 16px;
+
+    /* --- Base Colors (Your original first) --- */
     --background: #ffffff;
     --foreground: #111827;
+
     --card: #ffffff;
     --card-foreground: #111827;
+
     --popover: #ffffff;
     --popover-foreground: #111827;
+
     --primary: #2563eb;
     --primary-foreground: #ffffff;
+
     --secondary: #f3f4f6;
     --secondary-foreground: #111827;
+
     --muted: #f3f4f6;
     --muted-foreground: #9ca3af;
+
     --accent: #6366f1;
     --accent-foreground: #ffffff;
+
     --destructive: #dc2626;
     --destructive-foreground: #ffffff;
+
     --border: rgba(0, 0, 0, 0.1);
     --input: transparent;
     --input-background: #f3f4f6;
     --input-border: rgba(0, 0, 0, 0.1);
+
     --switch-background: #9ca3af;
+
     --font-weight-medium: 500;
     --font-weight-normal: 400;
+
     --ring: #2563eb;
+
+    /* --- Your original chart colors --- */
     --chart-1: #2563eb;
     --chart-2: #6366f1;
     --chart-3: #38bdf8;
     --chart-4: #10b981;
     --chart-5: #f59e0b;
+
     --radius: 1rem;
+
+    /* --- Sidebar (Your original values first) --- */
     --sidebar: #ffffff;
     --sidebar-foreground: #111827;
     --sidebar-primary: #2563eb;
@@ -43,38 +64,74 @@
     --sidebar-accent-foreground: #111827;
     --sidebar-border: rgba(0, 0, 0, 0.1);
     --sidebar-ring: #2563eb;
+
+    /* ---------------------------------------------------
+       Extra variables from SurgeAI (added, not replacing)
+       These only activate if your Figma components use them.
+    ---------------------------------------------------- */
+
+    --sa-foreground: oklch(0.145 0 0);
+    --sa-popover: oklch(1 0 0);
+    --sa-primary: #030213;
+    --sa-secondary: oklch(0.95 0.0058 264.53);
+    --sa-muted: #ececf0;
+    --sa-accent: #e9ebef;
+
+    /* SurgeAI chart colors */
+    --sa-chart-1: oklch(0.646 0.222 41.116);
+    --sa-chart-2: oklch(0.6 0.118 184.704);
+    --sa-chart-3: oklch(0.398 0.07 227.392);
+    --sa-chart-4: oklch(0.828 0.189 84.429);
+    --sa-chart-5: oklch(0.769 0.188 70.08);
+
+    /* Surge radius */
+    --sa-radius: 0.625rem;
   }
 
+  /* -------------------------------------------------------------
+     Dark Mode (Merged: Your dark theme + SurgeAI dark colors)
+  -------------------------------------------------------------- */
   .dark {
     --background: #0f172a;
     --foreground: #e5e7eb;
+
     --card: #1e293b;
     --card-foreground: #e5e7eb;
+
     --popover: #1e293b;
     --popover-foreground: #e5e7eb;
+
     --primary: #38bdf8;
     --primary-foreground: #0f172a;
+
     --secondary: #1e293b;
     --secondary-foreground: #e5e7eb;
+
     --muted: #1e293b;
     --muted-foreground: #9ca3af;
+
     --accent: #6366f1;
     --accent-foreground: #ffffff;
+
     --destructive: #dc2626;
     --destructive-foreground: #ffffff;
+
     --border: rgba(255, 255, 255, 0.1);
+
     --input: #1e293b;
     --input-background: #1e293b;
     --input-border: rgba(255, 255, 255, 0.1);
+
     --switch-background: #374151;
-    --font-weight-medium: 500;
-    --font-weight-normal: 400;
+
     --ring: #38bdf8;
+
     --chart-1: #38bdf8;
     --chart-2: #6366f1;
     --chart-3: #2563eb;
     --chart-4: #10b981;
     --chart-5: #f59e0b;
+
     --sidebar: #1e293b;
     --sidebar-foreground: #e5e7eb;
     --sidebar-primary: #38bdf8;
@@ -83,19 +140,35 @@
     --sidebar-accent-foreground: #e5e7eb;
     --sidebar-border: rgba(255, 255, 255, 0.1);
     --sidebar-ring: #38bdf8;
+
+    /* SurgeAI dark variables (added only, do not replace your theme) */
+    --sa-background: oklch(0.145 0 0);
+    --sa-foreground: oklch(0.985 0 0);
+    --sa-secondary: oklch(0.269 0 0);
+    --sa-chart-1: oklch(0.488 0.243 264.376);
+    --sa-chart-2: oklch(0.696 0.17 162.48);
+    --sa-chart-3: oklch(0.769 0.188 70.08);
+    --sa-chart-4: oklch(0.627 0.265 303.9);
+    --sa-chart-5: oklch(0.645 0.246 16.439);
   }
 }
 
+/* -------------------------------------------------------------
+   Base Elements
+-------------------------------------------------------------- */
 @layer base {
   * {
     @apply border-border outline-ring;
   }
+
   body {
     @apply bg-background text-foreground;
   }
 }
 
-/* Typography styles */
+/* -------------------------------------------------------------
+   Typography (kept unchanged from your structure)
+-------------------------------------------------------------- */
 @layer base {
   :where(:not(:has([class*=" text-"]), :not(:has([class^="text-"])))) {
     h1 {
@@ -150,4 +223,9 @@
 
 html {
   font-size: var(--font-size);
+}
+
+/* Ensure shadcn Select viewport inherits solid background from content */
+.select-content-solid [data-radix-select-viewport] {
+  background-color: inherit;
 }
