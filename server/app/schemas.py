@@ -116,30 +116,80 @@ class PasswordChange(BaseModel):
 class CampaignCreate(BaseModel):
     name: str
     description: str | None = None
-    keywords: str #"ai chatbot, customer service, saas" --> just an example so things remain cler
+    keywords: list[str]  # ["AI chatbot", "customer service", "SaaS"]
+    platforms: list[Platform] = [Platform.REDDIT, Platform.TWITTER, Platform.QUORA]  # Default: all platforms
 
 class Campaign(BaseModel):
     id: int
     name: str
     description: str | None
-    keywords: str
+    platforms: list[str]  # ["reddit", "twitter", "quora"]
     status: CampaignStatus
     created_at: datetime
     user_id: int
+    keywords: list["Keyword"] = []
 
     class Config:
         from_attributes = True
 
+# Keyword schemas
+class KeywordCreate(BaseModel):
+    keyword: str
+
+class KeywordCreateBulk(BaseModel):
+    keywords: list[str]
+
+class Keyword(BaseModel):
+    id: int
+    campaign_id: int
+    keyword: str
+    created_at: datetime
+    activities: list["KeywordActivity"] = []
+
+    class Config:
+        from_attributes = True
+
+class KeywordActivity(BaseModel):
+    id: int
+    keyword_id: int
+    platform: Platform
+    post_count: int
+    engagement_count: int
+    last_updated: datetime
+
+    class Config:
+        from_attributes = True
+
+class KeywordStats(BaseModel):
+    keyword_id: int
+    keyword: str
+    total_posts: int
+    total_engagement: int
+    platform_stats: dict[str, dict]  # {"reddit": {"posts": 10, "engagement": 50}}
+    rank: int | None = None
+
+class KeywordRankingResponse(BaseModel):
+    campaign_id: int
+    platform: Platform | None
+    keywords: list[KeywordStats]
+    ranked_at: datetime
 
 class ScrapedData(BaseModel):
     id: int
     campaign_id: int
+    keyword_id: int | None = None
     platform: Platform
     post_id: str | None = None
     post_url: str | None = None
     content: str | None = None
     author: str | None = None
+    engagement_score: int = 0
     scraped_at: datetime
 
     class Config:
         from_attributes = True
+
+# Update forward references for Pydantic
+Campaign.model_rebuild()
+Keyword.model_rebuild()
+KeywordActivity.model_rebuild()
