@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import {
   Search,
@@ -31,6 +31,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
 const notifications = [
   {
@@ -73,6 +76,54 @@ export function Navbar() {
     useCampaign();
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [user, setUser] = useState<{
+    full_name: string | null;
+    email: string;
+  } | null>(null);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const accessToken =
+          typeof window !== "undefined"
+            ? localStorage.getItem("access_token")
+            : null;
+
+        if (!accessToken) return;
+
+        const res = await fetch(`${API_BASE_URL}/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        setUser({
+          full_name: data.full_name ?? null,
+          email: data.email,
+        });
+      } catch {
+        // Ignore, navbar will just show fallback
+      }
+    };
+
+    loadUser();
+  }, []);
+
+  const initials = React.useMemo(() => {
+    if (user?.full_name) {
+      const parts = user.full_name.trim().split(" ");
+      const first = parts[0]?.[0] || "";
+      const second = parts[1]?.[0] || "";
+      return (first + second).toUpperCase() || "U";
+    }
+    if (user?.email) {
+      return user.email[0]?.toUpperCase() || "U";
+    }
+    return "U";
+  }, [user]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -241,7 +292,9 @@ export function Navbar() {
                 className="rounded-xl relative"
               >
                 <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-xl flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">JD</span>
+                  <span className="text-white text-sm font-medium">
+                    {initials}
+                  </span>
                 </div>
               </Button>
             </PopoverTrigger>
@@ -258,12 +311,14 @@ export function Navbar() {
                 <div className="p-4 border-b">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-xl flex items-center justify-center">
-                      <span className="text-white font-medium">JD</span>
+                      <span className="text-white font-medium">{initials}</span>
                     </div>
                     <div>
-                      <h4 className="font-medium">John Doe</h4>
+                      <h4 className="font-medium">
+                        {user?.full_name || "User"}
+                      </h4>
                       <p className="text-xs text-muted-foreground">
-                        john@surgeai.com
+                        {user?.email || ""}
                       </p>
                     </div>
                   </div>

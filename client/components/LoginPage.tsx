@@ -25,12 +25,68 @@ export function LoginPage() {
   const [role, setRole] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const API_BASE_URL =
+    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log("Login attempt:", { email, role, password, rememberMe });
-    router.push("/dashboard");
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const body = new URLSearchParams();
+      body.append("username", email);
+      body.append("password", password);
+      body.append("grant_type", "");
+      body.append("scope", "");
+      body.append("client_id", "");
+      body.append("client_secret", "");
+
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body,
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          (data && (data.detail || data.message)) ||
+          "Invalid email or password";
+        throw new Error(
+          Array.isArray(message) ? message.map((m) => m.msg || m).join("; ") : message,
+        );
+      }
+
+      if (typeof window !== "undefined" && data) {
+        if (data.access_token) {
+          localStorage.setItem("access_token", data.access_token);
+        }
+        if (data.refresh_token) {
+          localStorage.setItem("refresh_token", data.refresh_token);
+        }
+
+        if (rememberMe && data.refresh_token) {
+          localStorage.setItem("remember_me", "true");
+        } else {
+          localStorage.removeItem("remember_me");
+        }
+      }
+
+      router.push("/client");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -239,15 +295,26 @@ export function LoginPage() {
                   <Button
                     type="submit"
                     className="w-full h-12 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground font-semibold rounded-full shadow-lg shadow-primary/20 transition-all duration-300"
+                    disabled={isSubmitting}
                   >
                     <motion.span
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      Sign In
+                      {isSubmitting ? "Signing in..." : "Sign In"}
                     </motion.span>
                   </Button>
                 </motion.div>
+
+                {error && (
+                  <motion.p
+                    className="text-sm text-red-500 text-center pt-2"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    {error}
+                  </motion.p>
+                )}
 
                 <motion.div
                   className="text-center pt-2"

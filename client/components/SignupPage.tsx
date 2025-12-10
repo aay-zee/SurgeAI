@@ -16,12 +16,17 @@ export function SignupPage() {
   const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
+
+  const API_BASE_URL =
+    process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
   const [passwordStrength, setPasswordStrength] = useState(0);
 
@@ -42,14 +47,61 @@ export function SignupPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (step === 1) {
       setStep(2);
-    } else {
-      // Handle signup logic here
-      console.log("Signup attempt:", formData);
-      router.push("/dashboard");
+      return;
+    }
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.name || undefined,
+        }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        const message =
+          (data && (data.detail || data.message)) ||
+          "Failed to create account";
+        throw new Error(
+          Array.isArray(message) ? message.map((m) => m.msg || m).join("; ") : message,
+        );
+      }
+
+      if (typeof window !== "undefined" && data) {
+        if (data.access_token) {
+          localStorage.setItem("access_token", data.access_token);
+        }
+        if (data.refresh_token) {
+          localStorage.setItem("refresh_token", data.refresh_token);
+        }
+      }
+
+      router.push("/login");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Something went wrong. Please try again.";
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -357,7 +409,8 @@ export function SignupPage() {
                     className="w-full h-12 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white font-semibold rounded-full shadow-lg shadow-blue-500/20 transition-all duration-300"
                     disabled={
                       step === 2 &&
-                      (formData.password !== formData.confirmPassword ||
+                      (isSubmitting ||
+                        formData.password !== formData.confirmPassword ||
                         passwordStrength < 2)
                     }
                   >
@@ -365,10 +418,24 @@ export function SignupPage() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      {step === 1 ? "Continue" : "Create Account"}
+                      {isSubmitting
+                        ? "Creating account..."
+                        : step === 1
+                          ? "Continue"
+                          : "Create Account"}
                     </motion.span>
                   </Button>
                 </motion.div>
+
+                {error && (
+                  <motion.p
+                    className="text-sm text-red-500 text-center pt-2"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    {error}
+                  </motion.p>
+                )}
 
                 <motion.div
                   className="text-center pt-2"
