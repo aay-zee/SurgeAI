@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with default config
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  baseURL: '/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -41,7 +41,7 @@ api.interceptors.response.use(
         // Call the refresh endpoint
         // We use axios directly to avoid infinite loops with our interceptor
         const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/auth/refresh`, 
+          '/api/v1/auth/refresh',
           { refresh_token: refreshToken }
         );
 

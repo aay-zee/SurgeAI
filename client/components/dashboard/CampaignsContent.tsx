@@ -229,6 +229,18 @@ export function CampaignsContent() {
                   <span className="font-bold text-sm">3</span>
                 </div>
                 <div>
+                  <h4 className="font-medium text-sm">Validation</h4>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Verify demand and market fit using aggregated insights.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center border shadow-sm shrink-0">
+                  <span className="font-bold text-sm">4</span>
+                </div>
+                <div>
                   <h4 className="font-medium text-sm">Engagement</h4>
                   <p className="text-xs text-muted-foreground mt-1">
                     Review and post AI-drafted replies to potential customers.
@@ -252,9 +264,6 @@ export function CampaignsContent() {
                 </span>
                 <span className="px-2.5 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-medium border border-blue-200 dark:border-blue-800">
                   Sentiment NLP
-                </span>
-                <span className="px-2.5 py-1 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-xs font-medium border border-purple-200 dark:border-purple-800">
-                  Intent Detection
                 </span>
               </div>
             </CardContent>

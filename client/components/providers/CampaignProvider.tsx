@@ -1,24 +1,16 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
-
-// Sample campaign data
-const initialCampaigns = [
-  { id: "1", name: "AI Marketing Q1" },
-  { id: "2", name: "Product Launch 2024" },
-  { id: "3", name: "Social Media Outreach" },
-  { id: "4", name: "Brand Awareness" },
-];
-
-interface Campaign {
-  id: string;
-  name: string;
-}
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { campaignService } from "@/services/campaign.service";
+import { Campaign } from "@/types/campaign";
 
 interface CampaignContextType {
   selectedCampaignId: string;
   setSelectedCampaignId: (id: string) => void;
   campaigns: Campaign[];
+  isLoading: boolean;
+  refreshCampaigns: () => Promise<void>;
+  selectedCampaign: Campaign | undefined;
 }
 
 const CampaignContext = createContext<CampaignContextType | undefined>(
@@ -26,15 +18,43 @@ const CampaignContext = createContext<CampaignContextType | undefined>(
 );
 
 export function CampaignProvider({ children }: { children: ReactNode }) {
-  const [selectedCampaignId, setSelectedCampaignId] = useState<string>(
-    initialCampaigns[0].id
-  );
-  // In a real app, you might fetch campaigns from an API here
-  const [campaigns] = useState<Campaign[]>(initialCampaigns);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>("");
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const fetchCampaigns = async () => {
+    try {
+      setIsLoading(true);
+      const data = await campaignService.getCampaigns();
+      setCampaigns(data);
+      
+      // Select the first campaign by default if none selected or invalid
+      if (data.length > 0 && (!selectedCampaignId || !data.find(c => c.campaign_id.toString() === selectedCampaignId))) {
+        setSelectedCampaignId(data[0].campaign_id.toString());
+      }
+    } catch (error) {
+      console.error("Failed to fetch campaigns:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCampaigns();
+  }, []);
+
+  const selectedCampaign = campaigns.find(c => c.campaign_id.toString() === selectedCampaignId);
 
   return (
     <CampaignContext.Provider
-      value={{ selectedCampaignId, setSelectedCampaignId, campaigns }}
+      value={{ 
+        selectedCampaignId, 
+        setSelectedCampaignId, 
+        campaigns, 
+        isLoading,
+        refreshCampaigns: fetchCampaigns,
+        selectedCampaign
+      }}
     >
       {children}
     </CampaignContext.Provider>

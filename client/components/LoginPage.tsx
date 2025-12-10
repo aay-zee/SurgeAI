@@ -9,14 +9,8 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Checkbox } from "./ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "./ui/select";
-import { Brain, ArrowLeft, Eye, EyeOff, User, Shield, Loader2 } from "lucide-react";
+
+import { Brain, ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { authService } from "@/services/auth.service";
 import { toast } from "sonner";
 import { StatusPopup } from "./ui/StatusPopup";
@@ -25,7 +19,7 @@ export function LoginPage() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("");
+
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -154,59 +148,7 @@ export function LoginPage() {
                   />
                 </motion.div>
 
-                <motion.div
-                  className="space-y-2"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.6 }}
-                >
-                  <Label htmlFor="role" className="text-muted-foreground ml-1">
-                    Role
-                  </Label>
-                  <Select
-                    value={role}
-                    onValueChange={(value: string) => setRole(value)}
-                    required
-                  >
-                    <SelectTrigger className="h-12 rounded-xl bg-background text-foreground border-input focus:border-primary/50 focus:ring-primary/20 transition-all duration-300">
-                      <SelectValue placeholder="Select your role" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-popover border-border text-popover-foreground">
-                      <SelectItem
-                        value="client"
-                        className="cursor-pointer focus:bg-accent focus:text-accent-foreground"
-                      >
-                        <div className="flex items-center space-x-3 py-1">
-                          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                            <User className="w-4 h-4 text-primary" />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-medium">Client</span>
-                            <span className="text-xs text-muted-foreground">
-                              Access insights and reports
-                            </span>
-                          </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem
-                        value="admin"
-                        className="cursor-pointer focus:bg-accent focus:text-accent-foreground"
-                      >
-                        <div className="flex items-center space-x-3 py-1">
-                          <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
-                            <Shield className="w-4 h-4 text-primary" />
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-medium">Admin</span>
-                            <span className="text-xs text-muted-foreground">
-                              Full system access
-                            </span>
-                          </div>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </motion.div>
+
 
                 <motion.div
                   className="space-y-2"

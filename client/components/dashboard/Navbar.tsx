@@ -127,8 +127,8 @@ export function Navbar() {
             </SelectTrigger>
             <SelectContent className="select-content-solid rounded-lg border shadow-lg bg-white text-slate-900 dark:bg-slate-800 dark:text-slate-100 border-slate-200 dark:border-slate-700">
               {campaigns.map((campaign) => (
-                <SelectItem key={campaign.id} value={campaign.id}>
-                  {campaign.name}
+                <SelectItem key={campaign.campaign_id} value={campaign.campaign_id.toString()}>
+                  {campaign.campaign_name}
                 </SelectItem>
               ))}
             </SelectContent>
