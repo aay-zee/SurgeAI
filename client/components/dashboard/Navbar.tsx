@@ -7,12 +7,16 @@ import {
   Bell,
   Moon,
   Sun,
-  User,
+  User as UserIcon,
   Settings,
   LogOut,
   Check,
   X,
 } from "lucide-react";
+
+import { useRouter } from "next/navigation";
+import { authService } from "@/services/auth.service";
+import { User } from "@/types/auth";
 import { useTheme } from "@/components/theme-provider";
 import { useCampaign } from "@/components/providers/CampaignProvider";
 import { Input } from "@/components/ui/input";
@@ -68,11 +72,36 @@ const notifications = [
 ];
 
 export function Navbar() {
+  const router = useRouter();
   const { isDark, toggleTheme } = useTheme();
   const { selectedCampaignId, setSelectedCampaignId, campaigns } =
     useCampaign();
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+
+  React.useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const userData = await authService.getCurrentUser();
+        setUser(userData);
+      } catch (error) {
+        console.error("Failed to fetch user:", error);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+    } catch (error) {
+      console.error("Logout failed", error);
+    } finally {
+      router.push("/login");
+    }
+  };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -241,7 +270,16 @@ export function Navbar() {
                 className="rounded-xl relative"
               >
                 <div className="w-8 h-8 bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-xl flex items-center justify-center">
-                  <span className="text-white text-sm font-medium">JD</span>
+                  <span className="text-white text-sm font-medium">
+                    {user?.full_name
+                      ? user.full_name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2)
+                      : "U"}
+                  </span>
                 </div>
               </Button>
             </PopoverTrigger>
@@ -258,12 +296,23 @@ export function Navbar() {
                 <div className="p-4 border-b">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-xl flex items-center justify-center">
-                      <span className="text-white font-medium">JD</span>
+                      <span className="text-white font-medium">
+                        {user?.full_name
+                          ? user.full_name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2)
+                          : "U"}
+                      </span>
                     </div>
                     <div>
-                      <h4 className="font-medium">John Doe</h4>
-                      <p className="text-xs text-muted-foreground">
-                        john@surgeai.com
+                      <h4 className="font-medium text-sm">
+                        {user?.full_name || "User"}
+                      </h4>
+                      <p className="text-xs text-muted-foreground truncate w-32">
+                        {user?.email || ""}
                       </p>
                     </div>
                   </div>
@@ -275,7 +324,7 @@ export function Navbar() {
                     className="w-full justify-start text-sm h-9"
                     onClick={() => setProfileOpen(false)}
                   >
-                    <User size={16} className="mr-3" />
+                    <UserIcon size={16} className="mr-3" />
                     My Profile
                   </Button>
                   <Button
@@ -292,7 +341,7 @@ export function Navbar() {
                   <Button
                     variant="ghost"
                     className="w-full justify-start text-sm h-9 text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-                    onClick={() => setProfileOpen(false)}
+                    onClick={handleLogout}
                   >
                     <LogOut size={16} className="mr-3" />
                     Sign Out

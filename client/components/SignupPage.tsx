@@ -11,19 +11,46 @@ import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
 import { Progress } from "./ui/progress";
 import { Brain, ArrowLeft, Eye, EyeOff, Check } from "lucide-react";
 
+import { authService } from "@/services/auth.service";
+import { toast } from "sonner";
+import { StatusPopup } from "./ui/StatusPopup";
+
 export function SignupPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     password: "",
     confirmPassword: "",
   });
+  
+  const [popup, setPopup] = useState<{
+    isOpen: boolean;
+    type: "success" | "error";
+    title: string;
+    message: string;
+    onClose: () => void;
+  }>({
+    isOpen: false,
+    type: "success",
+    title: "",
+    message: "",
+    onClose: () => {},
+  });
 
   const [passwordStrength, setPasswordStrength] = useState(0);
+
+  const requirements = [
+    { label: "At least 8 characters", met: formData.password.length >= 8 },
+    { label: "At least one uppercase letter", met: /[A-Z]/.test(formData.password) },
+    { label: "At least one lowercase letter", met: /[a-z]/.test(formData.password) },
+    { label: "At least one number", met: /[0-9]/.test(formData.password) },
+    { label: "At least one special character", met: /[^A-Za-z0-9]/.test(formData.password) },
+  ];
 
   const checkPasswordStrength = (password: string) => {
     let strength = 0;
@@ -42,14 +69,42 @@ export function SignupPage() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (step === 1) {
       setStep(2);
     } else {
-      // Handle signup logic here
-      console.log("Signup attempt:", formData);
-      router.push("/dashboard");
+      setIsLoading(true);
+      try {
+        await authService.register({
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.name,
+        });
+        
+        setPopup({
+          isOpen: true,
+          type: "success",
+          title: "Account Created!",
+          message: "Your account has been successfully created. Please check your email for a welcome message.",
+          onClose: () => {
+            setPopup((prev) => ({ ...prev, isOpen: false }));
+            router.push("/login");
+          },
+        });
+      } catch (error: any) {
+        console.error("Signup error:", error);
+        
+        setPopup({
+          isOpen: true,
+          type: "error",
+          title: "Registration Failed",
+          message: error.response?.data?.detail || "We couldn't create your account. Please try again.",
+          onClose: () => setPopup((prev) => ({ ...prev, isOpen: false })),
+        });
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
@@ -260,23 +315,42 @@ export function SignupPage() {
                       </div>
                       {formData.password && (
                         <motion.div
-                          className="mt-2"
+                          className="mt-3 space-y-2"
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: "auto" }}
                           transition={{ duration: 0.3 }}
                         >
-                          <div className="flex items-center space-x-2 mb-1">
-                            <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full transition-all duration-300 ${getPasswordStrengthColor()}`}
-                                style={{
-                                  width: `${(passwordStrength / 5) * 100}%`,
-                                }}
-                              />
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              {getPasswordStrengthText()}
-                            </span>
+                          <div className="flex items-center space-x-2 mb-2">
+                             <div className="flex-1 h-1 bg-slate-800 rounded-full overflow-hidden">
+                               <div
+                                 className={`h-full transition-all duration-300 ${getPasswordStrengthColor()}`}
+                                 style={{
+                                   width: `${(passwordStrength / 5) * 100}%`,
+                                 }}
+                               />
+                             </div>
+                             <span className="text-xs text-muted-foreground">
+                               {getPasswordStrengthText()}
+                             </span>
+                           </div>
+
+                          <div className="space-y-1">
+                            {requirements.map((req, index) => (
+                              <div key={index} className="flex items-center space-x-2">
+                                <Check
+                                  className={`w-3 h-3 ${
+                                    req.met ? "text-green-500" : "text-muted-foreground/30"
+                                  }`}
+                                />
+                                <span
+                                  className={`text-xs transition-colors duration-200 ${
+                                    req.met ? "text-green-500" : "text-muted-foreground"
+                                  }`}
+                                >
+                                  {req.label}
+                                </span>
+                              </div>
+                            ))}
                           </div>
                         </motion.div>
                       )}
@@ -358,14 +432,14 @@ export function SignupPage() {
                     disabled={
                       step === 2 &&
                       (formData.password !== formData.confirmPassword ||
-                        passwordStrength < 2)
+                        passwordStrength < 2) || isLoading
                     }
                   >
                     <motion.span
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      {step === 1 ? "Continue" : "Create Account"}
+                      {step === 1 ? "Continue" : (isLoading ? "Creating Account..." : "Create Account")}
                     </motion.span>
                   </Button>
                 </motion.div>
@@ -417,6 +491,15 @@ export function SignupPage() {
           }}
         />
       </motion.div>
+      
+      <StatusPopup
+        isOpen={popup.isOpen}
+        type={popup.type}
+        title={popup.title}
+        message={popup.message}
+        onClose={popup.onClose}
+        actionLabel={popup.type === "success" ? "Go to Login" : "Try Again"}
+      />
     </div>
   );
 }

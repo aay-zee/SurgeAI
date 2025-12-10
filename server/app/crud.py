@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from datetime import datetime
 from . import models, schemas
 from .auth import get_password_hash, verify_password
@@ -10,7 +11,7 @@ def get_user_by_email(db: Session, email: str):
 
 def get_user_by_id(db: Session, user_id: int):
     """Get user by ID."""
-    return db.query(models.User).filter(models.User.id == user_id).first()
+    return db.query(models.User).filter(models.User.user_id == user_id).first()
 
 def create_user(db: Session, user: schemas.UserCreate):
     """Create a new user with hashed password."""
@@ -22,7 +23,7 @@ def create_user(db: Session, user: schemas.UserCreate):
     hashed_password = get_password_hash(user.password)
     db_user = models.User(
         email=user.email,
-        hashed_password=hashed_password,
+        password_hash=hashed_password,
         full_name=user.full_name,
         role=models.UserRole.CLIENT,  # All signups are CLIENT role by default
         is_active=True
@@ -37,13 +38,13 @@ def authenticate_user(db: Session, email: str, password: str):
     user = get_user_by_email(db, email)
     if not user:
         return False
-    if not verify_password(password, user.hashed_password):
+    if not verify_password(password, user.password_hash):
         return False
     return user
 
 def update_user_password(db: Session, user: models.User, new_password: str):
     """Update user password."""
-    user.hashed_password = get_password_hash(new_password)
+    user.password_hash = get_password_hash(new_password)
     db.commit()
     db.refresh(user)
     return user
@@ -67,7 +68,7 @@ def clear_reset_token(db: Session, user: models.User):
 # Campaign CRUD operations (updated)
 def get_campaign(db: Session, campaign_id: int, user_id: int | None = None):
     """Get campaign by ID, optionally filtered by user_id."""
-    query = db.query(models.Campaign).filter(models.Campaign.id == campaign_id)
+    query = db.query(models.Campaign).filter(models.Campaign.campaign_id == campaign_id)
     if user_id:
         query = query.filter(models.Campaign.user_id == user_id)
     return query.first()
@@ -78,7 +79,7 @@ def create_campaign(db: Session, campaign: schemas.CampaignCreate, user_id: int)
     platforms_list = [p.value for p in campaign.platforms]
     
     db_campaign = models.Campaign(
-        name=campaign.name,
+        campaign_name=campaign.campaign_name,
         description=campaign.description,
         platforms=platforms_list,
         user_id=user_id
@@ -90,7 +91,7 @@ def create_campaign(db: Session, campaign: schemas.CampaignCreate, user_id: int)
     # Create keywords
     for keyword_text in campaign.keywords:
         keyword = models.Keyword(
-            campaign_id=db_campaign.id,
+            campaign_id=db_campaign.campaign_id,
             keyword=keyword_text.strip()
         )
         db.add(keyword)
@@ -167,7 +168,7 @@ def create_keywords_bulk(db: Session, campaign_id: int, keywords: list[str]):
 
 def get_keyword(db: Session, keyword_id: int):
     """Get keyword by ID."""
-    return db.query(models.Keyword).filter(models.Keyword.id == keyword_id).first()
+    return db.query(models.Keyword).filter(models.Keyword.keyword_id == keyword_id).first()
 
 def get_keywords_by_campaign(db: Session, campaign_id: int):
     """Get all keywords for a campaign."""
@@ -266,7 +267,7 @@ def get_keyword_rankings(
     keyword_stats = []
     for keyword in keywords:
         activities = db.query(models.KeywordActivity).filter(
-            models.KeywordActivity.keyword_id == keyword.id
+            models.KeywordActivity.keyword_id == keyword.keyword_id
         )
         
         if platform:
@@ -287,7 +288,7 @@ def get_keyword_rankings(
         }
         
         keyword_stats.append({
-            "keyword_id": keyword.id,
+            "keyword_id": keyword.keyword_id,
             "keyword": keyword.keyword,
             "total_posts": total_posts,
             "total_engagement": total_engagement,
@@ -346,3 +347,61 @@ def delete_campaign(db: Session, campaign_id: int, user_id: int | None = None):
         db.commit()
         return True
     return False
+
+# NLP Analysis CRUD operations
+def create_nlp_analysis(db: Session, analysis_in: schemas.NLPAnalysisCreate) -> models.NLPAnalysis:
+    """Insert a new NLPAnalysis row."""
+    obj = models.NLPAnalysis(**analysis_in.model_dump())
+    db.add(obj)
+    db.commit()
+    db.refresh(obj)
+    return obj
+
+
+def get_analysis_by_data_id(db: Session, data_id: int) -> models.NLPAnalysis | None:
+    return db.query(models.NLPAnalysis).filter(models.NLPAnalysis.data_id == data_id).first()
+
+
+def get_unanalysed_scraped_data_for_campaign(db: Session, campaign_id: int, limit: int = 100):
+    """Return scraped data for a campaign where no NLPAnalysis exists yet."""
+    q = (
+        db.query(models.ScrapedData)
+        .outerjoin(models.NLPAnalysis, models.NLPAnalysis.data_id == models.ScrapedData.data_id)
+        .filter(models.ScrapedData.campaign_id == campaign_id)
+        .filter(models.NLPAnalysis.analysis_id.is_(None))
+        .order_by(models.ScrapedData.scraped_at.desc())
+        .limit(limit)
+    )
+    return q.all()
+
+
+def get_campaign_sentiment_summary(db: Session, campaign_id: int):
+    """Aggregate counts and percentages of sentiment per campaign."""
+    total_q = (
+        db.query(func.count(models.NLPAnalysis.analysis_id))
+        .join(models.ScrapedData, models.ScrapedData.data_id == models.NLPAnalysis.data_id)
+        .filter(models.ScrapedData.campaign_id == campaign_id)
+    )
+    total = total_q.scalar() or 0
+
+    counts_q = (
+        db.query(models.NLPAnalysis.sentiment_label, func.count(models.NLPAnalysis.analysis_id))
+        .join(models.ScrapedData, models.ScrapedData.data_id == models.NLPAnalysis.data_id)
+        .filter(models.ScrapedData.campaign_id == campaign_id)
+        .group_by(models.NLPAnalysis.sentiment_label)
+    )
+
+    counts = {"positive": 0, "neutral": 0, "negative": 0}
+    for label, cnt in counts_q.all():
+        counts[str(label)] = cnt
+
+    def pct(c):
+        return (c / total * 100.0) if total > 0 else 0.0
+
+    summary = {
+        "counts": counts,
+        "percentages": {k: pct(v) for k, v in counts.items()},
+        "total": total,
+    }
+    return summary
+

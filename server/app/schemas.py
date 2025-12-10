@@ -49,7 +49,7 @@ class UserLogin(BaseModel):
     password: str
 
 class UserResponse(BaseModel):
-    id: int
+    user_id: int
     email: str
     full_name: Optional[str]
     role: UserRole
@@ -114,14 +114,14 @@ class PasswordChange(BaseModel):
 
 # Campaign schemas
 class CampaignCreate(BaseModel):
-    name: str
+    campaign_name: str
     description: str | None = None
     keywords: list[str]  # ["AI chatbot", "customer service", "SaaS"]
     platforms: list[Platform] = [Platform.REDDIT, Platform.TWITTER, Platform.QUORA]  # Default: all platforms
 
 class Campaign(BaseModel):
-    id: int
-    name: str
+    campaign_id: int
+    campaign_name: str
     description: str | None
     platforms: list[str]  # ["reddit", "twitter", "quora"]
     status: CampaignStatus
@@ -140,7 +140,7 @@ class KeywordCreateBulk(BaseModel):
     keywords: list[str]
 
 class Keyword(BaseModel):
-    id: int
+    keyword_id: int
     campaign_id: int
     keyword: str
     created_at: datetime
@@ -175,7 +175,7 @@ class KeywordRankingResponse(BaseModel):
     ranked_at: datetime
 
 class ScrapedData(BaseModel):
-    id: int
+    data_id: int
     campaign_id: int
     keyword_id: int | None = None
     platform: Platform
@@ -193,3 +193,25 @@ class ScrapedData(BaseModel):
 Campaign.model_rebuild()
 Keyword.model_rebuild()
 KeywordActivity.model_rebuild()
+
+# NLP Analysis schemas
+class NLPAnalysisBase(BaseModel):
+    sentiment_score: float | None = None
+    sentiment_label: str
+    topics: dict | None = None
+    keywords_extracted: dict | None = None
+    intent: str | None = None
+
+class NLPAnalysisCreate(NLPAnalysisBase):
+    data_id: int
+
+class NLPAnalysisRead(NLPAnalysisBase):
+    analysis_id: int
+    data_id: int
+    analyzed_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ScrapedDataWithAnalysis(ScrapedData):
+    analysis: NLPAnalysisRead | None = None

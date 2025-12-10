@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, Enum, ForeignKey, Boolean, ARRAY, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, DateTime, Enum, ForeignKey, Boolean, ARRAY, UniqueConstraint, Float, JSON, CheckConstraint
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
 import enum
@@ -10,6 +10,8 @@ class CampaignStatus(str, enum.Enum):
     SCRAPING = "scraping"
     COMPLETED = "completed"
     FAILED = "failed"
+    ACTIVE = "active"
+    PAUSED = "paused"
 
 class Platform(str, enum.Enum):
     REDDIT = "reddit"
@@ -20,14 +22,26 @@ class UserRole(str, enum.Enum):
     ADMIN = "admin"
     CLIENT = "client"
 
+class CommentStatus(str, enum.Enum):
+    DRAFT = "draft"
+    APPROVED = "approved"
+    POSTED = "posted"
+    REJECTED = "rejected"
+
+class SentimentLabel(str, enum.Enum):
+    POSITIVE = "positive"
+    NEGATIVE = "negative"
+    NEUTRAL = "neutral"
+
 class User(Base):
     __tablename__ = "users"
-    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
+    password_hash = Column(String, nullable=False)
     full_name = Column(String, nullable=True)
     role = Column(Enum(UserRole), default=UserRole.CLIENT, nullable=False)
     is_active = Column(Boolean, default=True)
+    last_login = Column(DateTime(timezone=True), nullable=True)
     reset_token = Column(String, nullable=True)
     reset_token_expires_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -37,23 +51,25 @@ class User(Base):
 
 class Campaign(Base):
     __tablename__ = "campaigns"
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, index=True, nullable=False)
+    campaign_id = Column(Integer, primary_key=True, index=True)
+    campaign_name = Column(String, index=True, nullable=False)
     description = Column(Text)
     platforms = Column(ARRAY(String), default=["reddit", "twitter", "quora"])  # Selected platforms
     status = Column(Enum(CampaignStatus), default=CampaignStatus.PENDING)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False, index=True)
     
     # Relationships
     user = relationship("User", back_populates="campaigns")
     keywords = relationship("Keyword", back_populates="campaign", cascade="all, delete-orphan")
     scraped_data = relationship("ScrapedData", back_populates="campaign")
+    generated_comments = relationship("GeneratedComment", back_populates="campaign")
+    validation_results = relationship("ValidationResult", back_populates="campaign")
 
 class Keyword(Base):
     __tablename__ = "keywords"
-    id = Column(Integer, primary_key=True, index=True)
-    campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False, index=True)
+    keyword_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
     keyword = Column(String, nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
@@ -65,7 +81,7 @@ class Keyword(Base):
 class KeywordActivity(Base):
     __tablename__ = "keyword_activities"
     id = Column(Integer, primary_key=True, index=True)
-    keyword_id = Column(Integer, ForeignKey("keywords.id"), nullable=False, index=True)
+    keyword_id = Column(Integer, ForeignKey("keywords.keyword_id"), nullable=False, index=True)
     platform = Column(Enum(Platform), nullable=False)
     post_count = Column(Integer, default=0)
     engagement_count = Column(Integer, default=0)
@@ -81,9 +97,9 @@ class KeywordActivity(Base):
 
 class ScrapedData(Base):
     __tablename__ = "scraped_data"
-    id = Column(Integer, primary_key=True, index=True)
-    campaign_id = Column(Integer, ForeignKey("campaigns.id"), index=True)
-    keyword_id = Column(Integer, ForeignKey("keywords.id"), index=True, nullable=True)
+    data_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), index=True)
+    keyword_id = Column(Integer, ForeignKey("keywords.keyword_id"), index=True, nullable=True)
     platform = Column(Enum(Platform), nullable=False)
     post_id = Column(String, unique=True, index=True)
     post_url = Column(String)
@@ -95,3 +111,49 @@ class ScrapedData(Base):
     # Relationships
     campaign = relationship("Campaign", back_populates="scraped_data")
     keyword = relationship("Keyword", back_populates="scraped_data")
+    analysis = relationship("NLPAnalysis", uselist=False, back_populates="scraped_data")
+    generated_comments = relationship("GeneratedComment", back_populates="scraped_data")
+
+class NLPAnalysis(Base):
+    __tablename__ = "nlp_analysis"
+    analysis_id = Column(Integer, primary_key=True, index=True)
+    data_id = Column(Integer, ForeignKey("scraped_data.data_id"), nullable=False, unique=True)
+    sentiment_score = Column(Float, nullable=True)
+    sentiment_label = Column(Enum(SentimentLabel), nullable=False)
+    topics = Column(JSON, nullable=True)
+    keywords_extracted = Column(JSON, nullable=True)
+    intent = Column(String(50), nullable=True)
+    analyzed_at = Column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (CheckConstraint("sentiment_score >= -1.0 AND sentiment_score <= 1.0", name="sentiment_score_range"),)
+    scraped_data = relationship("ScrapedData", back_populates="analysis")
+
+class ValidationResult(Base):
+    __tablename__ = "validation_results"
+    validation_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False)
+    demand_score = Column(Float, nullable=True)
+    sentiment_aggregate = Column(Float, nullable=True)
+    positive_mentions = Column(Integer, default=0)
+    negative_mentions = Column(Integer, default=0)
+    neutral_mentions = Column(Integer, default=0)
+    summary = Column(Text, nullable=True)
+    generated_at = Column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (
+        CheckConstraint("demand_score >= 0 AND demand_score <= 100", name="demand_score_range"),
+        CheckConstraint("sentiment_aggregate >= -1.0 AND sentiment_aggregate <= 1.0", name="sentiment_aggregate_range"),
+    )
+    campaign = relationship("Campaign", back_populates="validation_results")
+
+class GeneratedComment(Base):
+    __tablename__ = "generated_comments"
+    comment_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False)
+    data_id = Column(Integer, ForeignKey("scraped_data.data_id"), nullable=False)
+    generated_comment = Column(Text, nullable=False)
+    status = Column(Enum(CommentStatus), default=CommentStatus.DRAFT)
+    target_platform = Column(String(200), nullable=False)
+    target_post_id = Column(String(100), nullable=False)
+    generated_at = Column(DateTime(timezone=True), server_default=func.now())
+    posted_at = Column(DateTime(timezone=True), nullable=True)
+    campaign = relationship("Campaign", back_populates="generated_comments")
+    scraped_data = relationship("ScrapedData", back_populates="generated_comments")

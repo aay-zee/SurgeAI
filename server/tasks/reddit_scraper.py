@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from celery import shared_task
 from app.database import SessionLocal
 from app import models, crud
+from .nlp_analysis import run_sentiment_for_campaign
 
 load_dotenv()
 
@@ -18,7 +19,6 @@ reddit = praw.Reddit(
 def scrape_reddit_for_campaign(campaign_id: int):
     """
     Celery task to scrape Reddit based on campaign keywords.
-    Links scraped data to specific keywords and tracks activity.
     """
     db = SessionLocal()
     try:
@@ -29,75 +29,47 @@ def scrape_reddit_for_campaign(campaign_id: int):
             return
 
         crud.update_campaign_status(db, campaign_id, models.CampaignStatus.SCRAPING)
-        
-        # 2. Get keywords from Keyword table
-        keywords = crud.get_keywords_by_campaign(db, campaign_id)
-        if not keywords:
-            print(f"No keywords found for campaign {campaign_id}")
-            crud.update_campaign_status(db, campaign_id, models.CampaignStatus.COMPLETED)
-            return
-        
-        print(f"Starting Reddit scraping for campaign '{campaign.name}' with {len(keywords)} keywords")
+        # keywords = campaign.keywords.split(',') # Old way
+        # New way: access keywords properly via relationship
+        keyword_objs = crud.get_keywords_by_campaign(db, campaign_id)
+        keywords = [k.keyword for k in keyword_objs]
+        print(f"Starting scraping for campaign '{campaign.campaign_name}' with keywords: {keywords}")
 
-        # 3. Scrape Reddit for each keyword individually
+        # 2. Scrape Reddit
+        # Combining keywords with OR for a broader search
+        search_query = " OR ".join([f'"{k.strip()}"' for k in keywords])
+        
+        # Search in a few relevant subreddits
         subreddits = ["startups", "SideProject", "smallbusiness", "Entrepreneur"]
         
-        for keyword_obj in keywords:
-            keyword = keyword_obj.keyword
-            print(f"Scraping for keyword: {keyword}")
-            
-            post_count = 0
-            engagement_count = 0
-            
-            # Search for this specific keyword
-            search_query = f'"{keyword}"'
-            
-            for sub_name in subreddits:
-                try:
-                    subreddit = reddit.subreddit(sub_name)
-                    # Limit to 10 posts per subreddit per keyword
-                    for submission in subreddit.search(search_query, limit=10, sort="new"):
-                        if not submission.is_self:  # Skip link posts
-                            continue
-
-                        # Calculate engagement score (upvotes + comments)
-                        engagement_score = submission.score + submission.num_comments
-
-                        # Create ScrapedData object linked to keyword
-                        scraped_data = models.ScrapedData(
-                            campaign_id=campaign_id,
-                            keyword_id=keyword_obj.id,  # Link to specific keyword
-                            platform=models.Platform.REDDIT,
-                            post_id=submission.id,
-                            post_url=f"https://reddit.com{submission.permalink}",
-                            content=f"Title: {submission.title}\n\n{submission.selftext}",
-                            author=str(submission.author) if submission.author else "Unknown",
-                            engagement_score=engagement_score
-                        )
-                        
-                        if crud.create_scraped_data(db, scraped_data):
-                            post_count += 1
-                            engagement_count += engagement_score
-                
-                except Exception as e:
-                    print(f"Error scraping subreddit {sub_name} for keyword {keyword}: {e}")
+        for sub_name in subreddits:
+            subreddit = reddit.subreddit(sub_name)
+            # Limit to 10 posts per subreddit for this example
+            for submission in subreddit.search(search_query, limit=10, sort="new"):
+                if not submission.is_self: # Skip link posts
                     continue
-            
-            # Update keyword activity for Reddit
-            if post_count > 0:
-                crud.update_keyword_activity(
-                    db, keyword_obj.id, models.Platform.REDDIT,
-                    post_count, engagement_count
+
+                # 3. Create ScrapedData object and save to DB
+                scraped_data = models.ScrapedData(
+                    campaign_id=campaign_id,
+                    platform=models.Platform.REDDIT,
+                    post_id=submission.id,
+                    post_url=submission.permalink,
+                    content=f"Title: {submission.title}\n\n{submission.selftext}",
+                    author=str(submission.author)
                 )
-                print(f"Updated activity for keyword '{keyword}': {post_count} posts, {engagement_count} engagement")
+                
+                crud.create_scraped_data(db, scraped_data)
         
-        print(f"Finished scraping for campaign {campaign_id}")
+            print(f"Finished scraping for campaign {campaign_id}")
+            
+        # Trigger NLP sentiment analysis for this campaign
+        run_sentiment_for_campaign.delay(campaign_id)
         crud.update_campaign_status(db, campaign_id, models.CampaignStatus.COMPLETED)
 
     except Exception as e:
         print(f"An error occurred: {e}")
-        import traceback
-        traceback.print_exc()
+        db.rollback() # Fix for "current transaction is aborted"
         crud.update_campaign_status(db, campaign_id, models.CampaignStatus.FAILED)
     finally:
         db.close()

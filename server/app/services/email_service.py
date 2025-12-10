@@ -22,8 +22,8 @@ conf = ConnectionConfig(
     MAIL_PORT=SMTP_PORT,
     MAIL_SERVER=SMTP_HOST,
     MAIL_FROM_NAME=SMTP_FROM_NAME,
-    MAIL_STARTTLS=True,
-    MAIL_SSL_TLS=False,
+    MAIL_STARTTLS=os.getenv("MAIL_STARTTLS", "True").lower() == "true",
+    MAIL_SSL_TLS=os.getenv("MAIL_SSL_TLS", "False").lower() == "true",
     USE_CREDENTIALS=True,
     VALIDATE_CERTS=True,
 )
@@ -156,6 +156,14 @@ async def send_password_reset_email(email: str, reset_token: str) -> bool:
             subtype="html",
         )
         
+        if SUPPRESS_SEND:
+            print("============================================")
+            print(f"📧 EMAIL SUPPRESSED (DEV MODE)")
+            print(f"To: {email}")
+            print(f"Subject: Password Reset Request - SurgeAI")
+            print(f"Reset Link: {reset_url}")
+            print("============================================")
+
         await fastmail.send_message(message)
         return True
         

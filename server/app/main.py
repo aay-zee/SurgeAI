@@ -42,6 +42,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    print(f"Validation error: {exc.errors()}")
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": jsonable_encoder(exc.errors())},
+    )
+
 #we are getting the db session here by using this function
 def get_db():
     db = SessionLocal()
@@ -108,6 +120,10 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is inactive"
         )
+        
+    # Update last login time
+    user.last_login = datetime.utcnow()
+    db.commit()
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     refresh_token_expires = timedelta(days=7)
@@ -229,7 +245,7 @@ def reset_password(request: schemas.ResetPassword, db: Session = Depends(get_db)
         )
     
     # Check if new password is different from current password
-    if verify_password(request.new_password, user.hashed_password):
+    if verify_password(request.new_password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="New password must be different from current password"
@@ -270,7 +286,7 @@ def list_campaigns(
     db: Session = Depends(get_db)
 ):
     """List all campaigns for the current user."""
-    campaigns = crud.get_all_campaigns(db, user_id=current_user.id)
+    campaigns = crud.get_all_campaigns(db, user_id=current_user.user_id)
     return campaigns
 
 @app.post("/campaigns/", response_model=schemas.Campaign, status_code=status.HTTP_201_CREATED)
@@ -284,13 +300,13 @@ def create_campaign_and_scrape(
     scraping tasks for selected platforms. Requires authentication.
     """
     # Save the campaign to the database associated with current user
-    db_campaign = crud.create_campaign(db=db, campaign=campaign, user_id=current_user.id)
+    db_campaign = crud.create_campaign(db=db, campaign=campaign, user_id=current_user.user_id)
     
     # Trigger scrapers for each selected platform
     for platform in campaign.platforms:
         if platform == models.Platform.REDDIT:
             try:
-                scrape_reddit_for_campaign.delay(db_campaign.id)
+                scrape_reddit_for_campaign.delay(db_campaign.campaign_id)
             except Exception as e:
                 # Log error but don't fail the request
                 print(f"Warning: Could not queue scraping task: {e}")
@@ -299,12 +315,12 @@ def create_campaign_and_scrape(
         # TODO: Add Twitter and Quora scrapers when implemented
         # elif platform == models.Platform.TWITTER:
         #     try:
-        #         scrape_twitter_for_campaign.delay(db_campaign.id)
+        #         scrape_twitter_for_campaign.delay(db_campaign.campaign_id)
         #     except Exception as e:
         #         print(f"Warning: Could not queue Twitter scraping task: {e}")
         # elif platform == models.Platform.QUORA:
         #     try:
-        #         scrape_quora_for_campaign.delay(db_campaign.id)
+        #         scrape_quora_for_campaign.delay(db_campaign.campaign_id)
         #     except Exception as e:
         #         print(f"Warning: Could not queue Quora scraping task: {e}")
     
@@ -320,7 +336,7 @@ def read_campaign(
     Retrieves campaign details and status. Requires authentication.
     User can only access their own campaigns.
     """
-    db_campaign = crud.get_campaign(db, campaign_id, user_id=current_user.id)
+    db_campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
     if not db_campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -336,7 +352,7 @@ def update_campaign(
     db: Session = Depends(get_db)
 ):
     """Update campaign details. User can only update their own campaigns."""
-    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.id)
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -346,14 +362,14 @@ def update_campaign(
     update_data = campaign_update.model_dump(exclude={"keywords"})
     update_data["platforms"] = [p.value for p in campaign_update.platforms]
     
-    updated_campaign = crud.update_campaign(db, campaign_id, update_data, current_user.id)
+    updated_campaign = crud.update_campaign(db, campaign_id, update_data, current_user.user_id)
     
     # Update keywords if provided
     if campaign_update.keywords:
         # Delete existing keywords
         existing_keywords = crud.get_keywords_by_campaign(db, campaign_id)
         for keyword in existing_keywords:
-            crud.delete_keyword(db, keyword.id)
+            crud.delete_keyword(db, keyword.keyword_id)
         
         # Add new keywords
         crud.create_keywords_bulk(db, campaign_id, campaign_update.keywords)
@@ -368,7 +384,7 @@ def delete_campaign(
     db: Session = Depends(get_db)
 ):
     """Delete a campaign. User can only delete their own campaigns."""
-    success = crud.delete_campaign(db, campaign_id, user_id=current_user.id)
+    success = crud.delete_campaign(db, campaign_id, user_id=current_user.user_id)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -390,7 +406,7 @@ def list_scraped_data(
     Requires authentication. User can only access their own campaigns.
     """
     # Verify campaign belongs to user
-    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.id)
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -409,7 +425,7 @@ def add_keywords(
     db: Session = Depends(get_db)
 ):
     """Add keywords to a campaign. User can only add to their own campaigns."""
-    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.id)
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -426,7 +442,7 @@ def get_keywords(
     db: Session = Depends(get_db)
 ):
     """Get all keywords for a campaign."""
-    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.id)
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -443,7 +459,7 @@ def delete_keyword(
     db: Session = Depends(get_db)
 ):
     """Delete a keyword from a campaign."""
-    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.id)
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -474,7 +490,7 @@ def get_keywords_stats(
     db: Session = Depends(get_db)
 ):
     """Get activity stats for all keywords in a campaign."""
-    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.id)
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -484,7 +500,7 @@ def get_keywords_stats(
     keywords = crud.get_keywords_by_campaign(db, campaign_id)
     stats = []
     for keyword in keywords:
-        stat = crud.get_keyword_stats(db, keyword.id)
+        stat = crud.get_keyword_stats(db, keyword.keyword_id)
         if stat:
             stats.append(stat)
     
@@ -498,7 +514,7 @@ def get_keyword_activity(
     db: Session = Depends(get_db)
 ):
     """Get activity for a specific keyword across all platforms."""
-    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.id)
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -523,7 +539,7 @@ def get_keyword_activity_by_platform(
     db: Session = Depends(get_db)
 ):
     """Get activity for a keyword on a specific platform."""
-    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.id)
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -554,7 +570,7 @@ def get_keyword_rankings(
     db: Session = Depends(get_db)
 ):
     """Get ranked keywords for a campaign (all platforms combined)."""
-    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.id)
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -578,7 +594,7 @@ def get_keyword_rankings_by_platform(
     db: Session = Depends(get_db)
 ):
     """Get ranked keywords for a campaign filtered by platform."""
-    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.id)
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -604,7 +620,7 @@ def get_posts_by_keyword(
     db: Session = Depends(get_db)
 ):
     """Get posts for a keyword, optionally filtered by platform."""
-    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.id)
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
     if not campaign:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -618,4 +634,37 @@ def get_posts_by_keyword(
             detail="Keyword not found"
         )
     
+    
     return crud.get_scraped_data_by_keyword_and_platform(db, keyword_id, platform, limit=200)
+
+
+@app.get("/campaigns/{campaign_id}/posts", response_model=list[schemas.ScrapedDataWithAnalysis])
+def list_posts_with_analysis(
+    campaign_id: int, 
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Return posts with nested NLP analysis for a campaign."""
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+    return crud.get_scraped_data_for_campaign(db, campaign_id, limit=200)
+
+
+@app.get("/campaigns/{campaign_id}/sentiment-summary")
+def sentiment_summary(
+    campaign_id: int, 
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Return sentiment counts and percentages for the campaign."""
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+    return crud.get_campaign_sentiment_summary(db, campaign_id)

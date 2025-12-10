@@ -16,7 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-import { Brain, ArrowLeft, Eye, EyeOff, User, Shield } from "lucide-react";
+import { Brain, ArrowLeft, Eye, EyeOff, User, Shield, Loader2 } from "lucide-react";
+import { authService } from "@/services/auth.service";
+import { toast } from "sonner";
+import { StatusPopup } from "./ui/StatusPopup";
 
 export function LoginPage() {
   const router = useRouter();
@@ -25,12 +28,52 @@ export function LoginPage() {
   const [role, setRole] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const [popup, setPopup] = useState<{
+    isOpen: boolean;
+    type: "success" | "error";
+    title: string;
+    message: string;
+    onClose: () => void;
+  }>({
+    isOpen: false,
+    type: "success",
+    title: "",
+    message: "",
+    onClose: () => {},
+  });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle login logic here
-    console.log("Login attempt:", { email, role, password, rememberMe });
-    router.push("/dashboard");
+    setIsLoading(true);
+    
+    try {
+      await authService.login({ email, password });
+      
+      setPopup({
+        isOpen: true,
+        type: "success",
+        title: "Welcome Back!",
+        message: "You have successfully logged in.",
+        onClose: () => {
+          setPopup((prev) => ({ ...prev, isOpen: false }));
+          router.push("/client");
+        },
+      });
+    } catch (error: any) {
+      console.error("Login error:", error);
+      
+      setPopup({
+        isOpen: true,
+        type: "error",
+        title: "Login Failed",
+        message: error.response?.data?.detail || "Invalid email or password",
+        onClose: () => setPopup((prev) => ({ ...prev, isOpen: false })),
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -239,12 +282,21 @@ export function LoginPage() {
                   <Button
                     type="submit"
                     className="w-full h-12 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-primary-foreground font-semibold rounded-full shadow-lg shadow-primary/20 transition-all duration-300"
+                    disabled={isLoading}
                   >
                     <motion.span
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
+                      className="flex items-center justify-center"
                     >
-                      Sign In
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Signing In...
+                        </>
+                      ) : (
+                        "Sign In"
+                      )}
                     </motion.span>
                   </Button>
                 </motion.div>
@@ -296,6 +348,15 @@ export function LoginPage() {
           }}
         />
       </motion.div>
+      
+      <StatusPopup
+        isOpen={popup.isOpen}
+        type={popup.type}
+        title={popup.title}
+        message={popup.message}
+        onClose={popup.onClose}
+        actionLabel={popup.type === "success" ? "Go to Dashboard" : "Try Again"}
+      />
     </div>
   );
 }

@@ -137,7 +137,13 @@ def get_current_user(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is inactive"
         )
-
+    
+    # Update last login
+    # Check if we need to update/record login time. 
+    # Strictly speaking get_current_user shouldn't write to DB for every request (performance),
+    # but for simplicity we can ignore or add a separate login-time function.
+    # The 'last_login' field is usually updated in the login endpoint.
+    
     return user
 
 
