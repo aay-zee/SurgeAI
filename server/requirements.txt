@@ -5,5 +5,11 @@ psycopg2-binary
 pydantic
 celery
 redis
-praw # Python Reddit API Wrapper
+praw
 python-dotenv
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt<4.0.0  # Pin to version compatible with passlib 1.7.4
+python-multipart
+email-validator
+fastapi-mail
