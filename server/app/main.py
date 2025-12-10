@@ -289,12 +289,24 @@ def create_campaign_and_scrape(
     # Trigger scrapers for each selected platform
     for platform in campaign.platforms:
         if platform == models.Platform.REDDIT:
-            scrape_reddit_for_campaign.delay(db_campaign.id)
+            try:
+                scrape_reddit_for_campaign.delay(db_campaign.id)
+            except Exception as e:
+                # Log error but don't fail the request
+                print(f"Warning: Could not queue scraping task: {e}")
+                print("Note: Celery/Redis may not be running. Scraping will not occur.")
+                # Campaign is still created successfully, just without background scraping
         # TODO: Add Twitter and Quora scrapers when implemented
         # elif platform == models.Platform.TWITTER:
-        #     scrape_twitter_for_campaign.delay(db_campaign.id)
+        #     try:
+        #         scrape_twitter_for_campaign.delay(db_campaign.id)
+        #     except Exception as e:
+        #         print(f"Warning: Could not queue Twitter scraping task: {e}")
         # elif platform == models.Platform.QUORA:
-        #     scrape_quora_for_campaign.delay(db_campaign.id)
+        #     try:
+        #         scrape_quora_for_campaign.delay(db_campaign.id)
+        #     except Exception as e:
+        #         print(f"Warning: Could not queue Quora scraping task: {e}")
     
     return db_campaign
 
