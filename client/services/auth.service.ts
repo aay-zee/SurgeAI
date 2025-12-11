@@ -1,5 +1,6 @@
 import api from '@/lib/axios';
 import { LoginCredentials, RegisterCredentials, AuthResponse, User } from '@/types/auth';
+import { jwtDecode } from 'jwt-decode';
 
 export const authService = {
   // Login user
@@ -51,8 +52,27 @@ export const authService = {
     return response.data;
   },
   
-  // Check if user is authenticated (simple check)
+  // Check if user is authenticated (checks token existence and expiration)
   isAuthenticated(): boolean {
-    return !!localStorage.getItem('access_token');
+    const token = localStorage.getItem('access_token');
+    if (!token) return false;
+
+    try {
+      const decoded: any = jwtDecode(token);
+      const currentTime = Date.now() / 1000;
+      
+      // Check if token is expired
+      if (decoded.exp && decoded.exp < currentTime) {
+        // Token is expired
+        // Optionally, we could try to refresh here, but for simple auth check
+        // we'll return false and let the interceptor or login page handle it
+        return false;
+      }
+      
+      return true;
+    } catch (error) {
+      // If token is invalid
+      return false;
+    }
   }
 };

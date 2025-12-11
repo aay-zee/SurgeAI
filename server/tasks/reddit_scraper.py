@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from celery import shared_task
 from app.database import SessionLocal
 from app import models, crud
-from .nlp_analysis import run_sentiment_for_campaign
+
 
 load_dotenv()
 
@@ -97,8 +97,7 @@ def scrape_reddit_for_campaign(campaign_id: int):
         
         print(f"Finished scraping for campaign {campaign_id}")
             
-        # Trigger NLP sentiment analysis for this campaign
-        run_sentiment_for_campaign.delay(campaign_id)
+
         crud.update_campaign_status(db, campaign_id, models.CampaignStatus.COMPLETED)
 
     except Exception as e:
