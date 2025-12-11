@@ -282,7 +282,7 @@ def change_password(
     return {"message": "Password has been changed successfully"}
 
 # Campaign endpoints (protected)
-@app.get("/campaigns/", response_model=list[schemas.Campaign])
+@app.get("/campaigns", response_model=list[schemas.Campaign])
 def list_campaigns(
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
@@ -291,7 +291,7 @@ def list_campaigns(
     campaigns = crud.get_all_campaigns(db, user_id=current_user.user_id)
     return campaigns
 
-@app.post("/campaigns/", response_model=schemas.Campaign, status_code=status.HTTP_201_CREATED)
+@app.post("/campaigns", response_model=schemas.Campaign, status_code=status.HTTP_201_CREATED)
 def create_campaign_and_scrape(
     campaign: schemas.CampaignCreate,
     current_user: models.User = Depends(get_current_active_user),

@@ -4,7 +4,7 @@ import { Campaign, CampaignCreate } from '@/types/campaign';
 export const campaignService = {
   // Get all campaigns for the current user
   async getCampaigns(): Promise<Campaign[]> {
-    const response = await api.get<Campaign[]>('/campaigns/');
+    const response = await api.get<Campaign[]>('/campaigns');
     return response.data;
   },
 
@@ -16,7 +16,7 @@ export const campaignService = {
 
   // Create a new campaign
   async createCampaign(data: CampaignCreate): Promise<Campaign> {
-    const response = await api.post<Campaign>('/campaigns/', data);
+    const response = await api.post<Campaign>('/campaigns', data);
     return response.data;
   },
 

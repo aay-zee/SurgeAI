@@ -45,7 +45,9 @@ export function SentimentChart({ summary }: SentimentChartProps) {
             cy="50%"
             labelLine={false}
             label={renderCustomizedLabel}
+            label={renderCustomizedLabel}
             outerRadius={100}
+            innerRadius={60}
             fill="#8884d8"
             dataKey="value"
           >

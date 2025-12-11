@@ -52,8 +52,8 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       }`}
     >
       {/* Header */}
-      <div className="p-6 border-b border-blue-800/50">
-        <div className="flex items-center justify-between">
+      <div className="p-4 border-b border-blue-800/50">
+        <div className="flex items-center justify-between h-10">
           {!isCollapsed && (
             <motion.div
               initial={{ opacity: 0, x: -20 }}

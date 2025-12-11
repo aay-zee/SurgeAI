@@ -26,14 +26,18 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       const data = await campaignService.getCampaigns();
+      console.log("[CampaignProvider] fetched campaigns successfully:", data.length);
       setCampaigns(data);
       
       // Select the first campaign by default if none selected or invalid
       if (data.length > 0 && (!selectedCampaignId || !data.find(c => c.campaign_id.toString() === selectedCampaignId))) {
         setSelectedCampaignId(data[0].campaign_id.toString());
       }
-    } catch (error) {
-      console.error("Failed to fetch campaigns:", error);
+    } catch (error: any) {
+      // Ignore 401 errors as they are handled by the axios interceptor
+      if (error.response?.status !== 401) {
+        console.error("Failed to fetch campaigns:", error);
+      }
     } finally {
       setIsLoading(false);
     }
