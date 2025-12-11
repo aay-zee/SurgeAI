@@ -380,7 +380,7 @@ export function SignupPage() {
           transition={{
             duration: 8,
             repeat: Infinity,
-            ease: "easeInOut",
+            
           }}
         />
         <motion.div
@@ -392,7 +392,7 @@ export function SignupPage() {
           transition={{
             duration: 5,
             repeat: Infinity,
-            ease: "easeInOut",
+            
           }}
         />
       </motion.div>

@@ -21,7 +21,9 @@ from .services.email_service import send_password_reset_email, send_welcome_emai
 # Ensure the Celery app (configured with Redis) is loaded before importing tasks
 from tasks.celery_worker import celery_app
 celery_app.set_default()
+from celery import chain
 from tasks.reddit_scraper import scrape_reddit_for_campaign
+from tasks.nlp_analysis import run_sentiment_for_campaign
 
 #All the db tables are beung created here
 models.Base.metadata.create_all(bind=engine)
@@ -305,13 +307,16 @@ def create_campaign_and_scrape(
     # Trigger scrapers for each selected platform
     for platform in campaign.platforms:
         if platform == models.Platform.REDDIT:
+            # Chain the scraper and NLP analysis
+            # Use .si() (immutable signature) for the second task to ignore the result of the scraper
             try:
-                scrape_reddit_for_campaign.delay(db_campaign.campaign_id)
+                chain(
+                    scrape_reddit_for_campaign.s(db_campaign.campaign_id),
+                    run_sentiment_for_campaign.si(db_campaign.campaign_id)
+                ).apply_async()
             except Exception as e:
-                # Log error but don't fail the request
-                print(f"Warning: Could not queue scraping task: {e}")
+                print(f"Warning: Could not queue scraping/NLP chain: {e}")
                 print("Note: Celery/Redis may not be running. Scraping will not occur.")
-                # Campaign is still created successfully, just without background scraping
         # TODO: Add Twitter and Quora scrapers when implemented
         # elif platform == models.Platform.TWITTER:
         #     try:

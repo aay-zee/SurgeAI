@@ -20,6 +20,8 @@ import {
   Calendar,
   Tag,
   Star,
+  Reply,
+  Flag,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { Card } from "../ui/card";
@@ -138,7 +140,7 @@ export function CommentsContent() {
       y: 0,
       transition: {
         duration: 0.5,
-        ease: "easeInOut",
+        
       },
     },
   };

@@ -15,6 +15,7 @@ import {
   ChevronUp,
   ChevronDown,
   BarChart3,
+  Eye,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { Card } from "../ui/card";
@@ -139,7 +140,7 @@ export function KeywordsContent() {
       y: 0,
       transition: {
         duration: 0.5,
-        ease: "easeInOut",
+        
       },
     },
   };

@@ -82,7 +82,7 @@ export function Navbar() {
     <motion.header
       initial={{ y: -10, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      transition={{ duration: 0.3,  }}
       className={`${
         isDark ? "bg-slate-800 border-slate-700" : "bg-white border-gray-200"
       } border-b px-6 py-4 transition-colors duration-300`}

@@ -56,7 +56,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     <motion.aside
       initial={{ x: -20, opacity: 0 }}
       animate={{ x: 0, opacity: 1 }}
-      transition={{ duration: 0.3, ease: "easeOut" }}
+      transition={{ duration: 0.3,  }}
       className={`${
         isCollapsed ? "w-16" : "w-64"
       } transition-all duration-300 ${

@@ -29,3 +29,38 @@ export interface CampaignCreate {
   platforms: Platform[];
   keywords: string[];
 }
+
+export interface NLPAnalysis {
+  analysis_id: number;
+  data_id: number;
+  sentiment_score: number;
+  sentiment_label: string;
+  analyzed_at: string;
+}
+
+export interface ScrapedData {
+  data_id: number;
+  campaign_id: number;
+  post_id: string;
+  content: string;
+  url: string;
+  platform: string;
+  scraped_at: string;
+  analysis?: NLPAnalysis;
+}
+
+export interface SentimentSummary {
+  counts: {
+    positive: number;
+    neutral: number;
+    negative: number;
+    [key: string]: number;
+  };
+  percentages: {
+    positive: number;
+    neutral: number;
+    negative: number;
+    [key: string]: number;
+  };
+  total: number;
+}

@@ -48,7 +48,7 @@ export function EngagementHeatmap() {
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, ease: "easeInOut" }}
+        transition={{ duration: 0.5,  }}
       >
         <div className="mb-6">
           <h3 className="text-lg font-semibold">Engagement Heatmap</h3>

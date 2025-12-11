@@ -19,6 +19,14 @@ import {
   Pie,
   Cell,
 } from "recharts";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   TrendingUp,
   Users,
@@ -28,8 +36,11 @@ import {
   ArrowDown,
   Calendar,
   DollarSign,
+  Filter,
+  Download,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
+import { Button } from "@/components/ui/button";
 
 const timeSeriesData = [
   { date: "2024-01", visitors: 12400, conversions: 850, revenue: 25600 },
@@ -80,7 +91,7 @@ export function AnalyticsContent() {
       y: 0,
       transition: {
         duration: 0.5,
-        ease: "easeInOut",
+        
       },
     },
   };

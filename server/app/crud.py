@@ -81,6 +81,7 @@ def create_campaign(db: Session, campaign: schemas.CampaignCreate, user_id: int)
     db_campaign = models.Campaign(
         campaign_name=campaign.campaign_name,
         description=campaign.description,
+        keywords_text=",".join(campaign.keywords),
         platforms=platforms_list,
         user_id=user_id
     )

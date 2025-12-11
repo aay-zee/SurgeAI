@@ -48,7 +48,7 @@ export function TrendingKeywords() {
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, ease: "easeInOut" }}
+        transition={{ duration: 0.5,  }}
         className="h-full"
       >
         <div className="mb-6">
@@ -72,7 +72,7 @@ export function TrendingKeywords() {
                 transition={{
                   delay: index * 0.1,
                   duration: 0.6,
-                  ease: "easeOut",
+                  
                 }}
                 whileHover={{
                   scale: 1.1,

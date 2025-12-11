@@ -29,5 +29,17 @@ export const campaignService = {
   // Delete a campaign
   async deleteCampaign(id: number): Promise<void> {
     await api.delete(`/campaigns/${id}`);
+  },
+
+  // Get scraped data for a campaign
+  async getCampaignScrapedData(id: number): Promise<import('@/types/campaign').ScrapedData[]> {
+    const response = await api.get<import('@/types/campaign').ScrapedData[]>(`/campaigns/${id}/posts`);
+    return response.data;
+  },
+
+  // Get sentiment summary for a campaign
+  async getCampaignSentimentSummary(id: number): Promise<import('@/types/campaign').SentimentSummary> {
+    const response = await api.get<import('@/types/campaign').SentimentSummary>(`/campaigns/${id}/sentiment-summary`);
+    return response.data;
   }
 };

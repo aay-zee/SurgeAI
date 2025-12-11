@@ -20,8 +20,17 @@ import {
   Copy,
   Eye,
   EyeOff,
+  Palette,
+  Upload,
+  Download,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { Card } from "@/components/ui/card";
 
 const apiKeys = [
   { name: "Google Analytics", status: "connected", lastUsed: "2 hours ago" },
@@ -61,7 +70,7 @@ export function SettingsContent() {
       y: 0,
       transition: {
         duration: 0.5,
-        ease: "easeInOut",
+        
       },
     },
   };

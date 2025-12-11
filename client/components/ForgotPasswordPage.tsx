@@ -253,7 +253,7 @@ export function ForgotPasswordPage() {
           transition={{
             duration: 4,
             repeat: Infinity,
-            ease: "easeInOut",
+            
           }}
         />
         <motion.div
@@ -265,7 +265,7 @@ export function ForgotPasswordPage() {
           transition={{
             duration: 3,
             repeat: Infinity,
-            ease: "easeInOut",
+            
           }}
         />
 
@@ -286,7 +286,7 @@ export function ForgotPasswordPage() {
               transition={{
                 duration: 3,
                 times: [0, 0.3, 1],
-                ease: "easeOut",
+                
               }}
             >
               <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-sm transform rotate-45">

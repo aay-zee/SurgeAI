@@ -141,7 +141,7 @@ export function KeywordsContent() {
       y: 0,
       transition: {
         duration: 0.5,
-        ease: "easeInOut",
+        
       },
     },
   };

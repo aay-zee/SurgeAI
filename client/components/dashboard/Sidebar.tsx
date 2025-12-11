@@ -46,7 +46,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     <motion.aside
       initial={{ width: 256 }}
       animate={{ width: isCollapsed ? 80 : 256 }}
-      transition={{ duration: 0.3, ease: "easeInOut" }}
+      transition={{ duration: 0.3,  }}
       className={`relative flex flex-col transition-colors duration-300 ${
         isDark ? "bg-slate-900" : "bg-blue-900"
       }`}

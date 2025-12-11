@@ -274,7 +274,7 @@ export function LoginPage() {
           transition={{
             duration: 4,
             repeat: Infinity,
-            ease: "easeInOut",
+            
           }}
         />
         <motion.div
@@ -286,7 +286,7 @@ export function LoginPage() {
           transition={{
             duration: 3,
             repeat: Infinity,
-            ease: "easeInOut",
+            
           }}
         />
       </motion.div>

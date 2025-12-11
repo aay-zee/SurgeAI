@@ -45,12 +45,19 @@ export function TrendingKeywords() {
     }
   };
 
+
+  const [rotationValues, setRotationValues] = useState<number[]>([]);
+
+  React.useEffect(() => {
+    setRotationValues(keywords.map(() => Math.random() * 360));
+  }, []);
+
   return (
     <Card className="p-6 h-96">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, ease: "easeInOut" }}
+        transition={{ duration: 0.5 }}
         className="h-full"
       >
         <div className="mb-6">
@@ -65,16 +72,15 @@ export function TrendingKeywords() {
             {keywords.map((keyword, index) => (
               <motion.span
                 key={keyword.text}
-                initial={{ opacity: 0, scale: 0, rotate: Math.random() * 360 }}
+                initial={{ opacity: 0, scale: 0, rotate: 0 }}
                 animate={{
                   opacity: 1,
                   scale: 1,
-                  rotate: 0,
+                  rotate: rotationValues[index] || 0,
                 }}
                 transition={{
                   delay: index * 0.1,
                   duration: 0.6,
-                  ease: "easeOut",
                 }}
                 whileHover={{
                   scale: 1.1,

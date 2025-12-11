@@ -62,7 +62,7 @@ export function AIMarketingSuggestion() {
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, ease: "easeInOut" }}
+        transition={{ duration: 0.5,  }}
         className="relative h-full flex flex-col"
       >
         <div className="flex items-center justify-between mb-6">
@@ -171,7 +171,7 @@ export function AIMarketingSuggestion() {
           transition={{
             duration: 3,
             repeat: Infinity,
-            ease: "easeInOut",
+            
           }}
           className="absolute top-8 right-8 w-2 h-2 bg-cyan-500 rounded-full"
         />
@@ -184,7 +184,7 @@ export function AIMarketingSuggestion() {
           transition={{
             duration: 4,
             repeat: Infinity,
-            ease: "easeInOut",
+            
             delay: 1,
           }}
           className="absolute bottom-12 left-8 w-3 h-3 bg-indigo-500 rounded-full"

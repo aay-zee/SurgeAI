@@ -38,7 +38,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           className="flex h-screen overflow-hidden"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, ease: "easeInOut" }}
+          transition={{ duration: 0.5,  }}
         >
           <Sidebar
             isCollapsed={sidebarCollapsed}

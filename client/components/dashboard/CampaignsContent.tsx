@@ -24,12 +24,16 @@ import {
   MessageSquare,
   Globe,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { campaignService } from "@/services/campaign.service";
 
 export function CampaignsContent() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [keywords, setKeywords] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const router = useRouter(); // Import needed
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -40,12 +44,22 @@ export function CampaignsContent() {
 
     setLoading(true);
     try {
-      // Simulation of API call
-      await new Promise((r) => setTimeout(r, 1500));
+      const keywordList = keywords.split(',').map(k => k.trim()).filter(k => k);
+      const newCampaign = await campaignService.createCampaign({
+        campaign_name: title,
+        description: description,
+        platforms: ["reddit" as any], // Defaulting to Reddit for now as per plan
+        keywords: keywordList
+      });
+
       toast.success("Campaign launched successfully! Agents are now scraping.");
       setTitle("");
       setDescription("");
       setKeywords("");
+      
+      // Redirect to results page
+      router.push(`/client/campaigns/${newCampaign.campaign_id}/results`);
+      
     } catch (err) {
       console.error(err);
       toast.error("Failed to create campaign.");
@@ -67,7 +81,7 @@ export function CampaignsContent() {
     show: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.5, ease: "easeInOut" },
+      transition: { duration: 0.5 },
     },
   };
 

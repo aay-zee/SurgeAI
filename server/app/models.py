@@ -29,9 +29,9 @@ class CommentStatus(str, enum.Enum):
     REJECTED = "rejected"
 
 class SentimentLabel(str, enum.Enum):
-    POSITIVE = "positive"
-    NEGATIVE = "negative"
-    NEUTRAL = "neutral"
+    positive = "positive"
+    negative = "negative"
+    neutral = "neutral"
 
 class User(Base):
     __tablename__ = "users"
@@ -52,8 +52,9 @@ class User(Base):
 class Campaign(Base):
     __tablename__ = "campaigns"
     campaign_id = Column(Integer, primary_key=True, index=True)
-    campaign_name = Column(String, index=True, nullable=False)
+    campaign_name = Column("name", String, index=True, nullable=False)
     description = Column(Text)
+    keywords_text = Column("keywords", Text, nullable=False, default="")
     platforms = Column(ARRAY(String), default=["reddit", "twitter", "quora"])  # Selected platforms
     status = Column(Enum(CampaignStatus), default=CampaignStatus.PENDING)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -45,7 +45,7 @@ export function SentimentDistribution() {
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, ease: "easeInOut" }}
+        transition={{ duration: 0.5,  }}
       >
         <div className="flex items-center justify-between mb-6">
           <div>

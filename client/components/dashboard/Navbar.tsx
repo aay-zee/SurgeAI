@@ -109,7 +109,7 @@ export function Navbar() {
     <motion.header
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: "easeInOut" }}
+      transition={{ duration: 0.5,  }}
       className="p-4 border-b transition-all duration-300 bg-background border-border sticky top-0 z-10"
     >
       <div className="flex items-center justify-between">

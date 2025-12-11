@@ -1,8 +1,8 @@
 #!/bin/bash
 
 BASE_URL="http://localhost:8000"
-EMAIL="ayazkahloon26@gmail.com"
-PASSWORD="TestPassword123!"
+EMAIL="testuser@example.com"
+PASSWORD="Test1234!"
 
 echo "=========================================="
 echo "  SURGEAI CAMPAIGN ENDPOINTS TEST"
@@ -60,7 +60,7 @@ CAMPAIGN_RESPONSE=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST "$BASE_URL/cam
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $ACCESS_TOKEN" \
   -d '{
-    "name": "AI Chatbot Campaign",
+    "campaign_name": "AI Chatbot Campaign",
     "description": "Tracking AI chatbot discussions across social media platforms",
     "keywords": ["AI chatbot", "customer service", "SaaS", "conversational AI"],
     "platforms": ["reddit"]
@@ -80,7 +80,7 @@ if [ "$HTTP_CODE" != "200" ] && [ "$HTTP_CODE" != "201" ]; then
 fi
 
 # Extract campaign ID (first id in response, which is the campaign ID)
-CAMPAIGN_ID=$(echo "$RESPONSE_BODY" | grep -o '"id":[0-9]*' | head -1 | cut -d: -f2)
+CAMPAIGN_ID=$(echo "$RESPONSE_BODY" | grep -o '"campaign_id":[0-9]*' | head -1 | cut -d: -f2)
 
 if [ -z "$CAMPAIGN_ID" ]; then
   echo "❌ Could not extract campaign ID from response"
