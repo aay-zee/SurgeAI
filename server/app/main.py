@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from datetime import timedelta, datetime
 from . import models, schemas, crud
 from .database import engine, SessionLocal
@@ -23,8 +24,35 @@ from tasks.celery_worker import celery_app
 celery_app.set_default()
 from celery import chain
 from tasks.reddit_scraper import scrape_reddit_for_campaign
+from tasks.hackernews_scraper import scrape_hackernews_for_campaign
 from tasks.nlp_analysis import run_sentiment_for_campaign
 from tasks.google_trends_scraper import scrape_google_trends_for_campaign
+
+# Ensure new enum values are present in existing PostgreSQL databases.
+def _ensure_postgres_platform_enum_values() -> None:
+    if engine.dialect.name != "postgresql":
+        return
+
+    statement = text(
+        """
+        DO $$
+        BEGIN
+            IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'platform') THEN
+                ALTER TYPE platform ADD VALUE IF NOT EXISTS 'hacker_news';
+            END IF;
+        END
+        $$;
+        """
+    )
+
+    try:
+        with engine.begin() as conn:
+            conn.execute(statement)
+    except Exception as exc:
+        print(f"Warning: Could not update platform enum values automatically: {exc}")
+
+
+_ensure_postgres_platform_enum_values()
 
 #All the db tables are beung created here
 models.Base.metadata.create_all(bind=engine)
@@ -302,12 +330,21 @@ def create_campaign_and_scrape(
     Creates a campaign in the database and triggers background
     scraping tasks for selected platforms. Requires authentication.
     """
+    # Keep Reddit and Hacker News coupled so both sources feed the same NLP pipeline.
+    selected_platform_values = {p.value for p in campaign.platforms}
+    if (
+        models.CampaignPlatform.REDDIT.value in selected_platform_values
+        and models.CampaignPlatform.HACKER_NEWS.value not in selected_platform_values
+    ):
+        campaign.platforms.append(models.CampaignPlatform.HACKER_NEWS)
+        selected_platform_values.add(models.CampaignPlatform.HACKER_NEWS.value)
+
     # Save the campaign to the database associated with current user
     db_campaign = crud.create_campaign(db=db, campaign=campaign, user_id=current_user.user_id)
     
     # Trigger scrapers for each selected platform
-    for platform in campaign.platforms:
-        if platform.value == models.CampaignPlatform.REDDIT.value:
+    for platform_value in selected_platform_values:
+        if platform_value == models.CampaignPlatform.REDDIT.value:
             # Chain the scraper and NLP analysis
             # Use .si() (immutable signature) for the second task to ignore the result of the scraper
             try:
@@ -318,7 +355,16 @@ def create_campaign_and_scrape(
             except Exception as e:
                 print(f"Warning: Could not queue scraping/NLP chain: {e}")
                 print("Note: Celery/Redis may not be running. Scraping will not occur.")
-        elif platform.value == models.CampaignPlatform.GOOGLE_TRENDS.value:
+        elif platform_value == models.CampaignPlatform.HACKER_NEWS.value:
+            try:
+                chain(
+                    scrape_hackernews_for_campaign.s(db_campaign.campaign_id),
+                    run_sentiment_for_campaign.si(db_campaign.campaign_id)
+                ).apply_async()
+            except Exception as e:
+                print(f"Warning: Could not queue Hacker News/NLP chain: {e}")
+                print("Note: Celery/Redis may not be running. Hacker News ingestion will not occur.")
+        elif platform_value == models.CampaignPlatform.GOOGLE_TRENDS.value:
             try:
                 scrape_google_trends_for_campaign.delay(db_campaign.campaign_id, campaign.region)
             except Exception as e:
@@ -426,6 +472,52 @@ def list_scraped_data(
         )
     return crud.get_scraped_data_for_campaign(
         db, campaign_id, keyword_id=keyword_id, platform=platform, limit=200
+    )
+
+
+@app.get("/campaigns/{campaign_id}/reddit-data", response_model=list[schemas.RedditData])
+def list_reddit_data(
+    campaign_id: int,
+    keyword_id: int | None = None,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Return dedicated Reddit rows for a campaign."""
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    return crud.get_reddit_data_for_campaign(
+        db,
+        campaign_id=campaign_id,
+        keyword_id=keyword_id,
+        limit=500,
+    )
+
+
+@app.get("/campaigns/{campaign_id}/hackernews-data", response_model=list[schemas.HackerNewsData])
+def list_hackernews_data(
+    campaign_id: int,
+    keyword_id: int | None = None,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Return dedicated Hacker News rows for a campaign."""
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    return crud.get_hackernews_data_for_campaign(
+        db,
+        campaign_id=campaign_id,
+        keyword_id=keyword_id,
+        limit=500,
     )
 
 # Keyword endpoints

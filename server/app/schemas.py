@@ -120,6 +120,7 @@ class CampaignCreate(BaseModel):
     keywords: list[str]  # ["AI chatbot", "customer service", "SaaS"]
     platforms: list[CampaignPlatform] = [
         CampaignPlatform.REDDIT,
+        CampaignPlatform.HACKER_NEWS,
         CampaignPlatform.TWITTER,
         CampaignPlatform.QUORA,
     ]
@@ -237,6 +238,42 @@ class NLPAnalysisRead(NLPAnalysisBase):
 
 class ScrapedDataWithAnalysis(ScrapedData):
     analysis: NLPAnalysisRead | None = None
+
+
+class RedditData(BaseModel):
+    reddit_data_id: int
+    campaign_id: int
+    keyword_id: int | None = None
+    source_post_id: str
+    post_url: str
+    title: str | None = None
+    content: str
+    author: str
+    score: int = 0
+    comments_count: int = 0
+    engagement_score: int = 0
+    scraped_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class HackerNewsData(BaseModel):
+    hn_data_id: int
+    campaign_id: int
+    keyword_id: int | None = None
+    source_post_id: str
+    post_url: str
+    title: str | None = None
+    content: str
+    author: str
+    points: int = 0
+    comments_count: int = 0
+    engagement_score: int = 0
+    scraped_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 class GoogleTrendsPoint(BaseModel):

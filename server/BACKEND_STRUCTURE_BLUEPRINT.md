@@ -80,7 +80,11 @@ server/
           client.py
           extractor.py
           normalizer.py
-        github/
+        twitter/
+          client.py
+          extractor.py
+          normalizer.py
+        quora/
           client.py
           extractor.py
           normalizer.py
@@ -88,7 +92,7 @@ server/
           client.py
           extractor.py
           normalizer.py
-        google_news/
+        apple_store/
           client.py
           extractor.py
           normalizer.py

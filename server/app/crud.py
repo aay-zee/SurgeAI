@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, desc
 from datetime import datetime
 from . import models, schemas
 from .auth import get_password_hash, verify_password
@@ -118,6 +118,74 @@ def create_scraped_data(db: Session, data: models.ScrapedData):
         db.refresh(data)
         return data
     return None
+
+
+def create_reddit_data(db: Session, data: models.RedditData):
+    """Insert a Reddit row if it does not already exist for the campaign."""
+    exists = (
+        db.query(models.RedditData)
+        .filter(models.RedditData.campaign_id == data.campaign_id)
+        .filter(models.RedditData.source_post_id == data.source_post_id)
+        .first()
+    )
+    if exists:
+        return None
+
+    db.add(data)
+    db.commit()
+    db.refresh(data)
+    return data
+
+
+def get_reddit_data_for_campaign(
+    db: Session,
+    campaign_id: int,
+    keyword_id: int | None = None,
+    limit: int = 200,
+):
+    """Return Reddit rows for a campaign for source-specific display."""
+    q = db.query(models.RedditData).filter(
+        models.RedditData.campaign_id == campaign_id
+    )
+
+    if keyword_id:
+        q = q.filter(models.RedditData.keyword_id == keyword_id)
+
+    return q.order_by(models.RedditData.scraped_at.desc()).limit(limit).all()
+
+
+def create_hackernews_data(db: Session, data: models.HackerNewsData):
+    """Insert a Hacker News row if it does not already exist for the campaign."""
+    exists = (
+        db.query(models.HackerNewsData)
+        .filter(models.HackerNewsData.campaign_id == data.campaign_id)
+        .filter(models.HackerNewsData.source_post_id == data.source_post_id)
+        .first()
+    )
+    if exists:
+        return None
+
+    db.add(data)
+    db.commit()
+    db.refresh(data)
+    return data
+
+
+def get_hackernews_data_for_campaign(
+    db: Session,
+    campaign_id: int,
+    keyword_id: int | None = None,
+    limit: int = 200,
+):
+    """Return Hacker News rows for a campaign for source-specific display."""
+    q = db.query(models.HackerNewsData).filter(
+        models.HackerNewsData.campaign_id == campaign_id
+    )
+
+    if keyword_id:
+        q = q.filter(models.HackerNewsData.keyword_id == keyword_id)
+
+    return q.order_by(models.HackerNewsData.scraped_at.desc()).limit(limit).all()
 
 
 def get_scraped_data_for_campaign(
@@ -468,4 +536,78 @@ def get_google_trends_data_for_campaign(
         q = q.filter(models.GoogleTrendsPoint.region == region_value)
 
     return q.order_by(models.GoogleTrendsPoint.trend_date.desc()).limit(limit).all()
+
+
+def get_campaign_pain_points_summary(
+    db: Session,
+    campaign_id: int,
+    platform: models.Platform | None = None,
+    limit: int = 20,
+):
+    """Aggregate pain-point labels detected in NLP analysis for a campaign."""
+    q = (
+        db.query(models.NLPAnalysis)
+        .join(models.ScrapedData, models.ScrapedData.data_id == models.NLPAnalysis.data_id)
+        .filter(models.ScrapedData.campaign_id == campaign_id)
+    )
+
+    if platform:
+        q = q.filter(models.ScrapedData.platform == platform)
+
+    counts: dict[str, int] = {}
+    for row in q.all():
+        pain_points: list[str] = []
+
+        if isinstance(row.topics, dict):
+            topic_points = row.topics.get("pain_points")
+            if isinstance(topic_points, list):
+                pain_points.extend([str(p).strip() for p in topic_points if str(p).strip()])
+
+        if isinstance(row.keywords_extracted, dict):
+            keyword_points = row.keywords_extracted.get("pain_points")
+            if isinstance(keyword_points, list):
+                pain_points.extend([str(p).strip() for p in keyword_points if str(p).strip()])
+
+        for pain_point in set(pain_points):
+            counts[pain_point] = counts.get(pain_point, 0) + 1
+
+    ranked = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:limit]
+    return {
+        "pain_points": [{"pain_point": label, "count": count} for label, count in ranked],
+        "total_mentions": sum(counts.values()),
+    }
+
+
+def get_campaign_top_authors(
+    db: Session,
+    campaign_id: int,
+    platform: models.Platform | None = None,
+    limit: int = 20,
+):
+    """Return top authors by post count and engagement for a campaign."""
+    q = (
+        db.query(
+            models.ScrapedData.author,
+            func.count(models.ScrapedData.data_id).label("posts"),
+            func.coalesce(func.sum(models.ScrapedData.engagement_score), 0).label("engagement"),
+        )
+        .filter(models.ScrapedData.campaign_id == campaign_id)
+        .filter(models.ScrapedData.author.isnot(None))
+        .group_by(models.ScrapedData.author)
+        .order_by(desc("posts"), desc("engagement"), desc(models.ScrapedData.author))
+        .limit(limit)
+    )
+
+    if platform:
+        q = q.filter(models.ScrapedData.platform == platform)
+
+    rows = q.all()
+    return [
+        {
+            "author": str(author),
+            "posts": int(posts or 0),
+            "engagement": int(engagement or 0),
+        }
+        for author, posts, engagement in rows
+    ]
 

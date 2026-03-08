@@ -15,12 +15,14 @@ class CampaignStatus(str, enum.Enum):
 
 class Platform(str, enum.Enum):
     REDDIT = "reddit"
+    HACKER_NEWS = "hacker_news"
     TWITTER = "twitter"
     QUORA = "quora"
 
 
 class CampaignPlatform(str, enum.Enum):
     REDDIT = "reddit"
+    HACKER_NEWS = "hacker_news"
     TWITTER = "twitter"
     QUORA = "quora"
     GOOGLE_TRENDS = "google_trends"
@@ -73,6 +75,8 @@ class Campaign(Base):
     scraped_data = relationship("ScrapedData", back_populates="campaign")
     generated_comments = relationship("GeneratedComment", back_populates="campaign")
     validation_results = relationship("ValidationResult", back_populates="campaign")
+    reddit_data = relationship("RedditData", back_populates="campaign")
+    hackernews_data = relationship("HackerNewsData", back_populates="campaign")
     google_trends_points = relationship("GoogleTrendsPoint", back_populates="campaign")
 
 class Keyword(Base):
@@ -86,7 +90,55 @@ class Keyword(Base):
     campaign = relationship("Campaign", back_populates="keywords")
     activities = relationship("KeywordActivity", back_populates="keyword", cascade="all, delete-orphan")
     scraped_data = relationship("ScrapedData", back_populates="keyword")
+    reddit_data = relationship("RedditData", back_populates="keyword")
+    hackernews_data = relationship("HackerNewsData", back_populates="keyword")
     google_trends_points = relationship("GoogleTrendsPoint", back_populates="keyword")
+
+
+class RedditData(Base):
+    __tablename__ = "reddit_data"
+    reddit_data_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
+    keyword_id = Column(Integer, ForeignKey("keywords.keyword_id"), nullable=True, index=True)
+    source_post_id = Column(String(100), nullable=False, index=True)
+    post_url = Column(String, nullable=False)
+    title = Column(String, nullable=True)
+    content = Column(Text, nullable=False)
+    author = Column(String, nullable=False)
+    score = Column(Integer, default=0)
+    comments_count = Column(Integer, default=0)
+    engagement_score = Column(Integer, default=0)
+    scraped_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "source_post_id", name="uq_reddit_campaign_source_post"),
+    )
+
+    campaign = relationship("Campaign", back_populates="reddit_data")
+    keyword = relationship("Keyword", back_populates="reddit_data")
+
+
+class HackerNewsData(Base):
+    __tablename__ = "hackernews_data"
+    hn_data_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
+    keyword_id = Column(Integer, ForeignKey("keywords.keyword_id"), nullable=True, index=True)
+    source_post_id = Column(String(100), nullable=False, index=True)
+    post_url = Column(String, nullable=False)
+    title = Column(String, nullable=True)
+    content = Column(Text, nullable=False)
+    author = Column(String, nullable=False)
+    points = Column(Integer, default=0)
+    comments_count = Column(Integer, default=0)
+    engagement_score = Column(Integer, default=0)
+    scraped_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "source_post_id", name="uq_hn_campaign_source_post"),
+    )
+
+    campaign = relationship("Campaign", back_populates="hackernews_data")
+    keyword = relationship("Keyword", back_populates="hackernews_data")
 
 
 class GoogleTrendsPoint(Base):

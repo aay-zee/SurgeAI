@@ -79,23 +79,54 @@ def scrape_reddit_for_campaign(campaign_id: int):
         posts = safe_search(subreddit, search_query, limit=10, sort="new")
 
         # 4. Process posts
+        inserted_reddit_rows = 0
+        inserted_scraped_rows = 0
         for submission in posts:
             if not submission.is_self:
                 continue
+
+            score = int(getattr(submission, "score", 0) or 0)
+            comments_count = int(getattr(submission, "num_comments", 0) or 0)
+            engagement_score = max(score, 0) + max(comments_count, 0)
+
+            reddit_row = models.RedditData(
+                campaign_id=campaign_id,
+                keyword_id=None,
+                source_post_id=str(submission.id),
+                post_url=submission.permalink,
+                title=submission.title,
+                content=f"Title: {submission.title}\n\n{submission.selftext}",
+                author=str(submission.author or "unknown"),
+                score=score,
+                comments_count=comments_count,
+                engagement_score=engagement_score,
+            )
+            created_reddit = crud.create_reddit_data(db, reddit_row)
+            if created_reddit:
+                inserted_reddit_rows += 1
+
+            campaign_scoped_post_id = f"reddit_{campaign_id}_{submission.id}"
 
             # Create ScrapedData object and save to DB
             scraped_data = models.ScrapedData(
                 campaign_id=campaign_id,
                 platform=models.Platform.REDDIT,
-                post_id=submission.id,
+                post_id=campaign_scoped_post_id,
                 post_url=submission.permalink,
                 content=f"Title: {submission.title}\n\n{submission.selftext}",
-                author=str(submission.author)
+                author=str(submission.author or "unknown"),
+                engagement_score=engagement_score,
             )
             
-            crud.create_scraped_data(db, scraped_data)
+            created_scraped = crud.create_scraped_data(db, scraped_data)
+            if created_scraped:
+                inserted_scraped_rows += 1
         
-        print(f"Finished scraping for campaign {campaign_id}")
+        print(
+            f"Finished Reddit scraping for campaign {campaign_id}. "
+            f"reddit_data inserted: {inserted_reddit_rows}, "
+            f"scraped_data inserted: {inserted_scraped_rows}"
+        )
             
 
         crud.update_campaign_status(db, campaign_id, models.CampaignStatus.COMPLETED)
@@ -107,4 +138,4 @@ def scrape_reddit_for_campaign(campaign_id: int):
     finally:
         db.close()
 
-    return f"Scraping completed for campaign {campaign_id}"
+    return f"Reddit scraping completed for campaign {campaign_id}"
