@@ -406,3 +406,66 @@ def get_campaign_sentiment_summary(db: Session, campaign_id: int):
     }
     return summary
 
+
+def create_google_trends_points_bulk(db: Session, campaign_id: int, points: list[dict]) -> int:
+    """Insert or update Google Trends points for a campaign."""
+    if not points:
+        return 0
+
+    created = 0
+    for point in points:
+        region = (point.get("region") or "GLOBAL").upper()
+        trend_date = point.get("trend_date")
+        if not trend_date:
+            continue
+
+        existing = (
+            db.query(models.GoogleTrendsPoint)
+            .filter(models.GoogleTrendsPoint.campaign_id == campaign_id)
+            .filter(models.GoogleTrendsPoint.keyword_id == point["keyword_id"])
+            .filter(models.GoogleTrendsPoint.region == region)
+            .filter(models.GoogleTrendsPoint.trend_date == trend_date)
+            .first()
+        )
+
+        if existing:
+            existing.interest = int(point.get("interest", 0))
+            existing.is_partial = bool(point.get("is_partial", False))
+            continue
+
+        obj = models.GoogleTrendsPoint(
+            campaign_id=campaign_id,
+            keyword_id=point["keyword_id"],
+            region=region,
+            trend_date=trend_date,
+            interest=int(point.get("interest", 0)),
+            is_partial=bool(point.get("is_partial", False)),
+        )
+        db.add(obj)
+        created += 1
+
+    db.commit()
+    return created
+
+
+def get_google_trends_data_for_campaign(
+    db: Session,
+    campaign_id: int,
+    keyword_id: int | None = None,
+    region: str | None = None,
+    limit: int = 500,
+):
+    """Return Google Trends points for a campaign."""
+    q = db.query(models.GoogleTrendsPoint).filter(models.GoogleTrendsPoint.campaign_id == campaign_id)
+
+    if keyword_id:
+        q = q.filter(models.GoogleTrendsPoint.keyword_id == keyword_id)
+
+    if region:
+        region_value = region.upper()
+        if region_value in {"GLOBAL", "WORLD", "ALL"}:
+            region_value = "GLOBAL"
+        q = q.filter(models.GoogleTrendsPoint.region == region_value)
+
+    return q.order_by(models.GoogleTrendsPoint.trend_date.desc()).limit(limit).all()
+

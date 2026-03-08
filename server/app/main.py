@@ -24,6 +24,7 @@ celery_app.set_default()
 from celery import chain
 from tasks.reddit_scraper import scrape_reddit_for_campaign
 from tasks.nlp_analysis import run_sentiment_for_campaign
+from tasks.google_trends_scraper import scrape_google_trends_for_campaign
 
 #All the db tables are beung created here
 models.Base.metadata.create_all(bind=engine)
@@ -306,7 +307,7 @@ def create_campaign_and_scrape(
     
     # Trigger scrapers for each selected platform
     for platform in campaign.platforms:
-        if platform == models.Platform.REDDIT:
+        if platform.value == models.CampaignPlatform.REDDIT.value:
             # Chain the scraper and NLP analysis
             # Use .si() (immutable signature) for the second task to ignore the result of the scraper
             try:
@@ -317,6 +318,12 @@ def create_campaign_and_scrape(
             except Exception as e:
                 print(f"Warning: Could not queue scraping/NLP chain: {e}")
                 print("Note: Celery/Redis may not be running. Scraping will not occur.")
+        elif platform.value == models.CampaignPlatform.GOOGLE_TRENDS.value:
+            try:
+                scrape_google_trends_for_campaign.delay(db_campaign.campaign_id, campaign.region)
+            except Exception as e:
+                print(f"Warning: Could not queue Google Trends task: {e}")
+                print("Note: Celery/Redis may not be running. Google Trends ingestion will not occur.")
         # TODO: Add Twitter and Quora scrapers when implemented
         # elif platform == models.Platform.TWITTER:
         #     try:
@@ -673,3 +680,28 @@ def sentiment_summary(
             detail="Campaign not found"
         )
     return crud.get_campaign_sentiment_summary(db, campaign_id)
+
+
+@app.get("/campaigns/{campaign_id}/google-trends", response_model=list[schemas.GoogleTrendsPoint])
+def list_google_trends_data(
+    campaign_id: int,
+    keyword_id: int | None = None,
+    region: str | None = None,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Return Google Trends time-series points for a campaign."""
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+
+    return crud.get_google_trends_data_for_campaign(
+        db,
+        campaign_id=campaign_id,
+        keyword_id=keyword_id,
+        region=region,
+        limit=1000,
+    )

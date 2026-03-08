@@ -1,7 +1,8 @@
 from pydantic import BaseModel, EmailStr, field_validator, model_validator
 from datetime import datetime
 from typing import Optional
-from .models import CampaignStatus, Platform, UserRole
+import re
+from .models import CampaignStatus, Platform, CampaignPlatform, UserRole
 from .validations import (
     validate_password_strength,
     validate_email,
@@ -117,7 +118,28 @@ class CampaignCreate(BaseModel):
     campaign_name: str
     description: str | None = None
     keywords: list[str]  # ["AI chatbot", "customer service", "SaaS"]
-    platforms: list[Platform] = [Platform.REDDIT, Platform.TWITTER, Platform.QUORA]  # Default: all platforms
+    platforms: list[CampaignPlatform] = [
+        CampaignPlatform.REDDIT,
+        CampaignPlatform.TWITTER,
+        CampaignPlatform.QUORA,
+    ]
+    region: str | None = None
+
+    @field_validator("region")
+    @classmethod
+    def validate_region_field(cls, v: str | None) -> str | None:
+        """Validate optional Google Trends region code (e.g., US, IN, US-CA)."""
+        if v is None:
+            return None
+
+        normalized = sanitize_input(v.upper(), max_length=20)
+        if normalized in {"", "GLOBAL", "WORLD", "ALL"}:
+            return None
+
+        if not re.match(r"^[A-Z]{2}(-[A-Z0-9]{1,3})?$", normalized):
+            raise ValueError("Region must be like US, IN, or US-CA")
+
+        return normalized
 
 class Campaign(BaseModel):
     campaign_id: int
@@ -215,3 +237,16 @@ class NLPAnalysisRead(NLPAnalysisBase):
 
 class ScrapedDataWithAnalysis(ScrapedData):
     analysis: NLPAnalysisRead | None = None
+
+
+class GoogleTrendsPoint(BaseModel):
+    trend_id: int
+    campaign_id: int
+    keyword_id: int
+    region: str
+    trend_date: datetime
+    interest: int
+    is_partial: bool = False
+
+    class Config:
+        from_attributes = True

@@ -18,3 +18,4 @@ torch
 jinja2<3.1.0
 streamlit
 pandas
+pytrends

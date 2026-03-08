@@ -18,6 +18,13 @@ class Platform(str, enum.Enum):
     TWITTER = "twitter"
     QUORA = "quora"
 
+
+class CampaignPlatform(str, enum.Enum):
+    REDDIT = "reddit"
+    TWITTER = "twitter"
+    QUORA = "quora"
+    GOOGLE_TRENDS = "google_trends"
+
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
     CLIENT = "client"
@@ -66,6 +73,7 @@ class Campaign(Base):
     scraped_data = relationship("ScrapedData", back_populates="campaign")
     generated_comments = relationship("GeneratedComment", back_populates="campaign")
     validation_results = relationship("ValidationResult", back_populates="campaign")
+    google_trends_points = relationship("GoogleTrendsPoint", back_populates="campaign")
 
 class Keyword(Base):
     __tablename__ = "keywords"
@@ -78,6 +86,27 @@ class Keyword(Base):
     campaign = relationship("Campaign", back_populates="keywords")
     activities = relationship("KeywordActivity", back_populates="keyword", cascade="all, delete-orphan")
     scraped_data = relationship("ScrapedData", back_populates="keyword")
+    google_trends_points = relationship("GoogleTrendsPoint", back_populates="keyword")
+
+
+class GoogleTrendsPoint(Base):
+    __tablename__ = "google_trends_points"
+    trend_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
+    keyword_id = Column(Integer, ForeignKey("keywords.keyword_id"), nullable=False, index=True)
+    region = Column(String(20), nullable=False, default="GLOBAL")
+    trend_date = Column(DateTime(timezone=True), nullable=False, index=True)
+    interest = Column(Integer, nullable=False)
+    is_partial = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "keyword_id", "region", "trend_date", name="uq_trends_campaign_keyword_region_date"),
+        CheckConstraint("interest >= 0 AND interest <= 100", name="trend_interest_range"),
+    )
+
+    campaign = relationship("Campaign", back_populates="google_trends_points")
+    keyword = relationship("Keyword", back_populates="google_trends_points")
 
 class KeywordActivity(Base):
     __tablename__ = "keyword_activities"
