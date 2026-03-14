@@ -4,7 +4,7 @@ services:
     name: surgeai-api
     env: docker
     dockerfilePath: ./Dockerfile
-    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    dockerCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
     envVars:
       - key: DATABASE_URL
         fromDatabase:
