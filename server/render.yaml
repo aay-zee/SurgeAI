@@ -43,13 +43,13 @@ services:
           name: surgeai-redis
           property: connectionString
 
+  # Redis instance for Celery
+  - type: redis
+    name: surgeai-redis
+    ipAllowList: [] # empty means allow all internal connections within Render
+
 databases:
   # Managed PostgreSQL Database
   - name: surgeai-db
     databaseName: surgeai
     user: surgeuser
-
-  # Redis instance for Celery
-  - type: redis
-    name: surgeai-redis
-    ipAllowList: [] # empty means allow all internal connections within Render
