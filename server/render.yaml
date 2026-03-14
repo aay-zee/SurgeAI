@@ -1,0 +1,55 @@
+services:
+  # FastAPI Backend Web Service
+  - type: web
+    name: surgeai-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    startCommand: "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: surgeai-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: surgeai-redis
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FRONTEND_URL
+        value: "https://your-frontend-deployment-url.vercel.app" # Replace with Vercel URL
+      - key: REDDIT_CLIENT_ID
+        sync: false
+      - key: REDDIT_CLIENT_SECRET
+        sync: false
+      - key: REDDIT_USER_AGENT
+        sync: false
+
+  # Celery Background Worker
+  - type: worker
+    name: surgeai-celery-worker
+    env: docker
+    dockerfilePath: ./Dockerfile
+    dockerCommand: "celery -A tasks.celery_worker.celery_app worker --loglevel=info"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: surgeai-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: surgeai-redis
+          property: connectionString
+
+databases:
+  # Managed PostgreSQL Database
+  - name: surgeai-db
+    databaseName: surgeai
+    user: surgeuser
+
+  # Redis instance for Celery
+  - type: redis
+    name: surgeai-redis
+    ipAllowList: [] # empty means allow all internal connections within Render
