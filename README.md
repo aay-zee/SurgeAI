@@ -37,10 +37,9 @@ SurgeAI is built using modern, production-grade technologies:
 
 ---
 
-## 🚀 Deployment Links (Placeholders)
-> **Employers & Reviewers:** Once the project is live, you can access it here:
-> - **Live Application**: [https://surgeai-frontend.vercel.app](https://surgeai-frontend.vercel.app) *(Deploying on Vercel)*
-> - **API Production URL**: [https://surgeai-backend.onrender.com](https://surgeai-backend.onrender.com) *(Deploying on Render)*
+## 🚀 Deployment Links
+> - **Live Application**: [https://surge-ai-theta.vercel.app](https://surge-ai-theta.vercel.app)
+> <!-- - **API Production URL**: [https://surgeai-backend.onrender.com](https://surgeai-backend.onrender.com) *(Deploying on Render)* -->
 
 ---
 
