@@ -46,6 +46,9 @@ export interface ScrapedData {
   url: string;
   platform: string;
   scraped_at: string;
+  author?: string;
+  engagement_score?: number;
+  post_url?: string;
   analysis?: NLPAnalysis;
 }
 
