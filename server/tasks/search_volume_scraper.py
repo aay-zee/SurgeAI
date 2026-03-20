@@ -15,8 +15,10 @@ SERPAPI_BASE = "https://serpapi.com/search"
 
 def safe_fetch_search_volume(keyword: str, api_key: str = "", retry_count: int = 0) -> dict:
     """
-    Fetch search volume proxy for a keyword using SerpAPI Google Search.
-    Uses total_results count and related searches as volume/competition signals.
+    Fetch search volume signals for a keyword using SerpAPI Google Search.
+    Uses multi-signal approach: ads, related searches, AI overview, shopping results,
+    organic result count — because SerpAPI's total_results is unreliable (returns
+    page count, not Google's actual index size).
     Returns dict: {monthly_volume, competition, competition_index, cpc, trend_direction}
     """
     if not api_key:
@@ -59,66 +61,90 @@ def safe_fetch_search_volume(keyword: str, api_key: str = "", retry_count: int =
             print(f"SerpAPI error for '{keyword}': {data['error']}")
             return {}
 
-        # Extract total results as a volume proxy
-        search_info = data.get("search_information", {})
-        total_results = search_info.get("total_results", 0)
+        # ── Multi-signal volume estimation ────────────────────────────────────
+        # SerpAPI's total_results reflects page count (unreliable), so we score
+        # the response using multiple quality signals instead.
 
-        # Map total_results to a monthly volume estimate
-        # Google total_results is a rough proxy: higher results = more interest
-        if total_results > 1_000_000_000:
-            monthly_volume = 100000
-            competition = "HIGH"
-            competition_index = 90
-        elif total_results > 100_000_000:
-            monthly_volume = 50000
-            competition = "HIGH"
-            competition_index = 75
-        elif total_results > 10_000_000:
-            monthly_volume = 10000
-            competition = "MEDIUM"
-            competition_index = 50
-        elif total_results > 1_000_000:
-            monthly_volume = 5000
-            competition = "MEDIUM"
-            competition_index = 35
-        elif total_results > 100_000:
-            monthly_volume = 1000
-            competition = "LOW"
-            competition_index = 20
-        elif total_results > 10_000:
-            monthly_volume = 500
-            competition = "LOW"
-            competition_index = 10
-        else:
-            monthly_volume = max(100, total_results // 100)
-            competition = "LOW"
-            competition_index = 5
-
-        # Check related searches for trend signals
+        ads              = data.get("ads", [])
         related_searches = data.get("related_searches", [])
-        related_count = len(related_searches) if related_searches else 0
+        organic_results  = data.get("organic_results", [])
+        shopping_results = data.get("shopping_results", [])
+        has_ai_overview  = "ai_overview" in data
+        has_knowledge    = "knowledge_graph" in data
+        has_inline_vids  = "inline_videos" in data
 
-        # More related searches suggests a rising/active topic
-        if related_count >= 8:
+        ads_count      = len(ads)
+        related_count  = len(related_searches)
+        organic_count  = len(organic_results)
+        shopping_count = len(shopping_results)
+
+        # Build a demand score (0–100) from weighted signals
+        demand_score = 0
+        demand_score += min(ads_count * 12, 36)        # ads = strong commercial intent (max 36)
+        demand_score += min(related_count * 3, 24)     # related searches = topic breadth (max 24)
+        demand_score += min(shopping_count * 4, 16)    # shopping = purchase intent (max 16)
+        demand_score += 10 if has_ai_overview else 0   # AI overview = high-traffic query
+        demand_score += 8  if has_knowledge   else 0   # Knowledge graph = well-known topic
+        demand_score += 6  if has_inline_vids else 0   # Inline videos = rich/popular topic
+
+        print(f"[SearchVolume] '{keyword}' | ads={ads_count} related={related_count} "
+              f"shopping={shopping_count} ai_overview={has_ai_overview} "
+              f"knowledge={has_knowledge} -> demand_score={demand_score}")
+
+        # Map demand score to monthly volume estimate
+        if demand_score >= 80:
+            monthly_volume   = 110000
+            competition      = "HIGH"
+            competition_index = 92
+        elif demand_score >= 60:
+            monthly_volume   = 60000
+            competition      = "HIGH"
+            competition_index = 78
+        elif demand_score >= 45:
+            monthly_volume   = 25000
+            competition      = "HIGH"
+            competition_index = 65
+        elif demand_score >= 30:
+            monthly_volume   = 10000
+            competition      = "MEDIUM"
+            competition_index = 50
+        elif demand_score >= 20:
+            monthly_volume   = 4000
+            competition      = "MEDIUM"
+            competition_index = 35
+        elif demand_score >= 10:
+            monthly_volume   = 1500
+            competition      = "LOW"
+            competition_index = 20
+        else:
+            monthly_volume   = 400
+            competition      = "LOW"
+            competition_index = 8
+
+        # Trend direction: related searches + video/AI signals
+        if related_count >= 8 or (has_ai_overview and related_count >= 5):
             trend_direction = "rising"
-        elif related_count >= 4:
+        elif related_count >= 4 or has_ai_overview:
             trend_direction = "stable"
         else:
             trend_direction = "falling"
 
-        # Extract CPC from ads if present (real ad data)
-        ads = data.get("ads", [])
-        cpc = None
-        if ads:
-            # Presence of ads suggests commercial intent; estimate CPC
-            cpc = round(0.5 + len(ads) * 0.3, 2)
+        # CPC: real if ads present, estimated from competition otherwise
+        if ads_count > 0:
+            cpc = round(0.8 + ads_count * 0.5, 2)
+        elif competition == "HIGH":
+            cpc = round(1.5 + shopping_count * 0.3, 2)
+        elif competition == "MEDIUM":
+            cpc = round(0.6, 2)
+        else:
+            cpc = None
 
         return {
-            "monthly_volume": monthly_volume,
-            "competition": competition,
+            "monthly_volume":   monthly_volume,
+            "competition":      competition,
             "competition_index": competition_index,
-            "cpc": cpc,
-            "trend_direction": trend_direction,
+            "cpc":              cpc,
+            "trend_direction":  trend_direction,
         }
 
     except requests.Timeout:
@@ -140,10 +166,6 @@ def scrape_search_volume_for_campaign(campaign_id: int):
         campaign = crud.get_campaign(db, campaign_id)
         if not campaign:
             return f"Campaign {campaign_id} not found"
-
-        if campaign.status in [models.CampaignStatus.COMPLETED, models.CampaignStatus.SCRAPING]:
-            if campaign.status == models.CampaignStatus.COMPLETED:
-                return f"Campaign {campaign_id} already completed"
 
         crud.update_campaign_status(db, campaign_id, models.CampaignStatus.SCRAPING)
 

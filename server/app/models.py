@@ -75,9 +75,14 @@ class Campaign(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     user_id = Column(Integer, ForeignKey("users.user_id"), nullable=False, index=True)
     
+    # Semantic pipeline fields
+    generated_keywords = Column(JSON, nullable=True)
+    problem_embedding = Column(JSON, nullable=True)
+
     # Relationships
     user = relationship("User", back_populates="campaigns")
     keywords = relationship("Keyword", back_populates="campaign", cascade="all, delete-orphan")
+    llm_analysis = relationship("LLMAnalysis", back_populates="campaign", uselist=False)
     scraped_data = relationship("ScrapedData", back_populates="campaign")
     generated_comments = relationship("GeneratedComment", back_populates="campaign")
     validation_results = relationship("ValidationResult", back_populates="campaign")
@@ -338,6 +343,11 @@ class ScrapedData(Base):
     engagement_score = Column(Integer, default=0)
     scraped_at = Column(DateTime(timezone=True), server_default=func.now())
     
+    # Semantic pipeline fields
+    embedding = Column(JSON, nullable=True)
+    relevance_score = Column(Float, nullable=True)
+    is_relevant = Column(Boolean, nullable=True)
+
     # Relationships
     campaign = relationship("Campaign", back_populates="scraped_data")
     keyword = relationship("Keyword", back_populates="scraped_data")
@@ -387,3 +397,23 @@ class GeneratedComment(Base):
     posted_at = Column(DateTime(timezone=True), nullable=True)
     campaign = relationship("Campaign", back_populates="generated_comments")
     scraped_data = relationship("ScrapedData", back_populates="generated_comments")
+
+
+class LLMAnalysis(Base):
+    __tablename__ = "llm_analysis"
+    analysis_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
+    validation_scores = Column(JSON, nullable=True)
+    themes = Column(JSON, nullable=True)
+    competitor_analysis = Column(JSON, nullable=True)
+    report_text = Column(Text, nullable=True)
+    sentiment_results = Column(JSON, nullable=True)
+    relevance_stats = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("campaign_id", name="uq_llm_analysis_campaign"),
+    )
+
+    campaign = relationship("Campaign", back_populates="llm_analysis")

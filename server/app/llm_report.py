@@ -1,7 +1,7 @@
 """
 LLM Report Generator
-Gathers all campaign data, builds a structured prompt,
-and calls the HuggingFace Space (Mistral 7B) to generate
+Gathers all campaign data (including semantic pipeline results),
+builds a structured prompt, and calls the LLM to generate
 a comprehensive startup validation report.
 """
 
@@ -49,11 +49,23 @@ Pain Point Severity:      {vs.pain_point_severity}/10 — {vs.pain_point_severit
 Monetization Potential:   {vs.monetization_potential}/10 — {vs.monetization_potential_reason or 'N/A'}
 OVERALL SCORE:            {overall_score}/10""".strip()
 
-    # --- Sentiment summary ---
-    scraped_data = db.query(models.ScrapedData).filter(
+    # --- Relevance stats ---
+    total_posts = db.query(models.ScrapedData).filter(
         models.ScrapedData.campaign_id == campaign_id
+    ).count()
+    relevant_posts = db.query(models.ScrapedData).filter(
+        models.ScrapedData.campaign_id == campaign_id,
+        models.ScrapedData.is_relevant == True,
+    ).count()
+    relevance_text = f"{relevant_posts} of {total_posts} posts were semantically relevant"
+    if total_posts > 0:
+        relevance_text += f" ({round(relevant_posts / total_posts * 100)}% relevance rate)"
+
+    # --- Sentiment summary (from relevant posts only) ---
+    scraped_data = db.query(models.ScrapedData).filter(
+        models.ScrapedData.campaign_id == campaign_id,
+        models.ScrapedData.is_relevant == True,
     ).all()
-    total_posts = len(scraped_data)
 
     nlp_analyses = db.query(models.NLPAnalysis).filter(
         models.NLPAnalysis.data_id.in_([d.data_id for d in scraped_data])
@@ -67,43 +79,77 @@ OVERALL SCORE:            {overall_score}/10""".strip()
     neg_pct = round((neg / total_nlp) * 100)
     neu_pct = 100 - pos_pct - neg_pct
 
-    # --- Themes (pain points) ---
-    from .theme_extractor import ThemeExtractor
-    extractor = ThemeExtractor(campaign_id, db)
-    themes = extractor.extract_themes()
+    # --- LLM-extracted themes (from LLMAnalysis if available, else fallback) ---
+    llm_analysis = db.query(models.LLMAnalysis).filter(
+        models.LLMAnalysis.campaign_id == campaign_id
+    ).first()
 
     themes_text = "No theme data available."
-    if themes:
+    if llm_analysis and llm_analysis.themes:
+        themes = llm_analysis.themes
         lines = []
-        for theme_name, data in sorted(themes.items(), key=lambda x: -x[1].get("frequency", 0)):
-            freq = data.get("frequency", 0)
-            sources = ", ".join(str(s) for s in data.get("sources", []))
-            quotes = data.get("quotes", [])
-            lines.append(f"\n[{theme_name.upper().replace('_', ' ')}] — {freq} mentions across {sources}")
-            for q in quotes[:2]:
-                short = (q[:200] + "...") if len(q) > 200 else q
-                lines.append(f'  • "{short}"')
-        themes_text = "\n".join(lines)
+        for theme_name, data in themes.items():
+            if isinstance(data, dict):
+                severity = data.get("severity", "medium")
+                desc = data.get("description", "")
+                quotes = data.get("quotes", [])
+                lines.append(f"\n[{theme_name.upper().replace('_', ' ')}] — Severity: {severity}")
+                if desc:
+                    lines.append(f"  {desc}")
+                for q in (quotes[:2] if isinstance(quotes, list) else []):
+                    short = (str(q)[:200] + "...") if len(str(q)) > 200 else str(q)
+                    lines.append(f'  • "{short}"')
+        themes_text = "\n".join(lines) if lines else themes_text
+    else:
+        # Fallback to keyword-based themes
+        from .theme_extractor import ThemeExtractor
+        extractor = ThemeExtractor(campaign_id, db)
+        themes = extractor.extract_themes()
+        if themes:
+            lines = []
+            for theme_name, data in sorted(themes.items(), key=lambda x: -x[1].get("frequency", 0)):
+                freq = data.get("frequency", 0)
+                sources = ", ".join(str(s) for s in data.get("sources", []))
+                quotes = data.get("quotes", [])
+                lines.append(f"\n[{theme_name.upper().replace('_', ' ')}] — {freq} mentions across {sources}")
+                for q in quotes[:2]:
+                    short = (q[:200] + "...") if len(q) > 200 else q
+                    lines.append(f'  • "{short}"')
+            themes_text = "\n".join(lines)
 
-    # --- Competitor analysis ---
-    from .theme_extractor import CompetitorThemeExtractor
-    comp_extractor = CompetitorThemeExtractor(campaign_id, db)
-    competitors = comp_extractor.extract_competitor_themes()
-
+    # --- Competitor analysis (from LLMAnalysis if available, else fallback) ---
     competitor_text = "No competitor data available."
-    if competitors:
+    if llm_analysis and llm_analysis.competitor_analysis:
+        competitors = llm_analysis.competitor_analysis
         lines = []
         for app_name, app_data in list(competitors.items())[:5]:
-            rating = app_data.get("rating", "N/A")
-            review_count = app_data.get("review_count", 0)
-            lines.append(f"\n[{app_name}] — Rating: {rating}/5 ({review_count} reviews)")
-            strengths = app_data.get("strengths", {})
-            weaknesses = app_data.get("weaknesses", {})
-            if strengths:
-                lines.append(f"  Strengths: {', '.join(list(strengths.keys())[:3])}")
-            if weaknesses:
-                lines.append(f"  Weaknesses: {', '.join(list(weaknesses.keys())[:3])}")
-        competitor_text = "\n".join(lines)
+            if isinstance(app_data, dict):
+                rating = app_data.get("rating", "N/A")
+                lines.append(f"\n[{app_name}] — Rating: {rating}/5")
+                strengths = app_data.get("strengths", [])
+                weaknesses = app_data.get("weaknesses", [])
+                if isinstance(strengths, list) and strengths:
+                    lines.append(f"  Strengths: {', '.join(str(s) for s in strengths[:3])}")
+                if isinstance(weaknesses, list) and weaknesses:
+                    lines.append(f"  Weaknesses: {', '.join(str(w) for w in weaknesses[:3])}")
+        competitor_text = "\n".join(lines) if lines else competitor_text
+    else:
+        from .theme_extractor import CompetitorThemeExtractor
+        comp_extractor = CompetitorThemeExtractor(campaign_id, db)
+        competitors = comp_extractor.extract_competitor_themes()
+        if competitors:
+            lines = []
+            for app_name, app_data in list(competitors.items())[:5]:
+                rating = app_data.get("rating", "N/A")
+                review_count = app_data.get("review_count", 0)
+                lines.append(f"\n[{app_name}] — Rating: {rating}/5 ({review_count} reviews)")
+                strengths = app_data.get("strengths", {})
+                weaknesses = app_data.get("weaknesses", {})
+                if strengths:
+                    lines.append(f"  Strengths: {', '.join(list(strengths.keys())[:3])}")
+                if weaknesses:
+                    lines.append(f"  Weaknesses: {', '.join(list(weaknesses.keys())[:3])}")
+            competitor_text = "\n".join(lines)
 
     # --- Market signals ---
     search_vols = db.query(models.SearchVolumeData).filter(
@@ -136,6 +182,11 @@ Description: {campaign.description or 'Not provided'}
 Keywords Tracked: {', '.join(keywords)}
 
 ───────────────────────────────────────────────────────────────
+DATA QUALITY
+───────────────────────────────────────────────────────────────
+{relevance_text}
+
+───────────────────────────────────────────────────────────────
 MARKET SIGNALS
 ───────────────────────────────────────────────────────────────
 Monthly Search Volume : {avg_volume:,}
@@ -148,7 +199,7 @@ VALIDATION SCORES (1–10)
 {scores_text}
 
 ───────────────────────────────────────────────────────────────
-USER SENTIMENT  ({total_posts} data points — Reddit, HackerNews, Quora, Stack Exchange)
+USER SENTIMENT  ({relevant_posts} relevant data points — Reddit, HackerNews, Quora, Google Play)
 ───────────────────────────────────────────────────────────────
 Positive : {pos_pct}%  ({pos} posts)
 Negative : {neg_pct}%  ({neg} posts)
@@ -168,7 +219,7 @@ COMPETITOR ANALYSIS  (from Google Play reviews)
 Based on all the data above, write a thorough validation report with these exact sections:
 
 ## 1. Executive Summary
-Summarize the startup idea and the most important findings in 3–4 sentences.
+Write 5–7 sentences covering: (a) what the startup does and the core problem it solves, (b) the overall validation score and what it signals, (c) the size and direction of the market based on search volume and trend data, (d) what the sentiment data reveals about real user pain, (e) the single biggest opportunity and the single biggest risk. Be specific — mention actual numbers, percentages, and theme names from the data above.
 
 ## 2. Key Shortcomings of This Idea
 List and explain 4–6 specific weaknesses, risks, or red flags based on the data. Be honest and specific.
@@ -177,10 +228,10 @@ List and explain 4–6 specific weaknesses, risks, or red flags based on the dat
 Synthesize real user sentiment and recurring pain points. Reference specific themes and quote real user feedback where available.
 
 ## 4. Competitor Strengths
-Based on the Google Play data, what do existing competitors do well? What keeps users loyal or satisfied?
+Based on real Google Play reviews, what do existing competitors do well? Reference specific apps by name and quote actual user feedback where available. What keeps users loyal or satisfied?
 
 ## 5. Competitor Weaknesses & Market Gaps
-Where do existing competitors fail their users? List specific gaps that your idea could exploit.
+Where do existing competitors fail their users? Quote specific complaints. List 3–5 concrete gaps your idea could exploit, and explain why each gap is an opportunity.
 
 ## 6. Specific Improvement Recommendations
 Provide 5–7 concrete, actionable recommendations. Each should be specific and directly tied to the data.
@@ -232,6 +283,7 @@ def generate_llm_report(campaign_id: int, db: Session) -> dict:
     """
     Main entry point: build prompt from DB data, call LLM, return report.
     Tries the Gradio Space first; falls back to HF Router (Llama-3-8B).
+    Stores result in LLMAnalysis table.
     """
     prompt = _build_prompt(campaign_id, db)
 
@@ -249,6 +301,23 @@ def generate_llm_report(campaign_id: int, db: Session) -> dict:
     if not report_text:
         report_text = _call_hf_router(prompt)
         model_used = "Llama-3-8B-Instruct (HF Router)"
+
+    # Store report in LLMAnalysis
+    try:
+        llm_analysis = db.query(models.LLMAnalysis).filter(
+            models.LLMAnalysis.campaign_id == campaign_id
+        ).first()
+        if llm_analysis:
+            llm_analysis.report_text = report_text
+        else:
+            llm_analysis = models.LLMAnalysis(
+                campaign_id=campaign_id,
+                report_text=report_text,
+            )
+            db.add(llm_analysis)
+        db.commit()
+    except Exception as e:
+        print(f"[LLM Report] Could not persist report: {e}")
 
     return {
         "status": "success",

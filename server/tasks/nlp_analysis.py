@@ -83,12 +83,12 @@ def _map_label(label: str | None) -> str:
 
 
 def _map_score_to_range(label: str, score: float) -> float:
-    """Map confidence score [0,1] to sentiment range [-1,1]."""
+    """Map confidence [0,1] to sentiment range [-1,1]."""
     base = max(0.0, min(1.0, float(score)))
     if label == "positive":
-        return base * 2.0 - 1.0
+        return base
     if label == "negative":
-        return -(base * 2.0 - 1.0)
+        return -base
     return 0.0
 
 

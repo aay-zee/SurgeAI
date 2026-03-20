@@ -5,11 +5,12 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from datetime import timedelta, datetime
 from . import models, schemas, crud
-from .database import engine, SessionLocal
+from .database import engine, SessionLocal, run_migrations
 from .validation_scorer import ValidationScorer
 from .theme_extractor import ThemeExtractor, CompetitorThemeExtractor
 from .confidence_scorer import ConfidenceScorer
 from .llm_report import generate_llm_report
+from .pipeline import run_validation_pipeline
 from .auth import (
     get_current_active_user,
     get_current_admin_user,
@@ -66,6 +67,7 @@ _ensure_postgres_platform_enum_values()
 try:
     print("Initializing database schema...")
     models.Base.metadata.create_all(bind=engine)
+    run_migrations()
     print("[OK] Database tables ready")
 except Exception as e:
     print(f"[ERROR] Database initialization error: {e}")
@@ -522,6 +524,15 @@ def run_scrapers_sync(
     # Update campaign status
     campaign.status = models.CampaignStatus.COMPLETED
     db.commit()
+
+    # Run semantic validation pipeline after all scrapers complete
+    try:
+        print(f"[Sync] Running semantic validation pipeline for campaign {campaign_id}...")
+        pipeline_result = run_validation_pipeline(campaign_id, db)
+        results["pipeline"] = pipeline_result.get("status", "completed")
+    except Exception as e:
+        print(f"[Sync] Semantic pipeline failed: {e}")
+        results["pipeline"] = f"error: {str(e)}"
 
     return {"status": "completed", "campaign_id": campaign_id, "results": results}
 
@@ -1604,4 +1615,49 @@ def generate_llm_report_endpoint(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate AI report: {str(e)}",
+        )
+
+
+@app.post("/campaigns/{campaign_id}/run-pipeline")
+def trigger_semantic_pipeline(
+    campaign_id: int,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Run the full 6-step semantic validation pipeline for a campaign:
+      1. Relevance filtering (embeddings)
+      2. Batched LLM sentiment analysis (relevant posts only)
+      3. LLM validation scoring (8 dimensions)
+      4. LLM theme extraction (complaint themes from negative posts)
+      5. LLM competitor analysis (Google Play reviews)
+      6. Full narrative report generation
+
+    Tries Celery (async, non-blocking) first.
+    Falls back to synchronous execution if Celery/Redis is unavailable.
+    """
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found",
+        )
+
+    # Try Celery — non-blocking, returns immediately
+    try:
+        from tasks.semantic_analysis import run_semantic_pipeline
+        run_semantic_pipeline.delay(campaign_id)
+        return {"status": "queued", "campaign_id": campaign_id, "mode": "async"}
+    except Exception as e:
+        print(f"[Pipeline] Celery unavailable ({e}), running synchronously...")
+
+    # Fallback: run synchronously (blocks until all 6 steps complete)
+    try:
+        result = run_validation_pipeline(campaign_id, db)
+        return result
+    except Exception as e:
+        print(f"[Pipeline] Sync execution failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Pipeline failed: {str(e)}",
         )

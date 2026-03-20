@@ -23,3 +23,5 @@ streamlit
 pandas
 pytrends
 gradio_client
+sentence-transformers
+numpy

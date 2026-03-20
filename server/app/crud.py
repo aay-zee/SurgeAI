@@ -74,10 +74,10 @@ def get_campaign(db: Session, campaign_id: int, user_id: int | None = None):
     return query.first()
 
 def create_campaign(db: Session, campaign: schemas.CampaignCreate, user_id: int):
-    """Create a campaign with keywords and platforms."""
+    """Create a campaign with keywords and platforms. Uses LLM to generate smart keywords."""
     # Convert Platform enum to string list
     platforms_list = [p.value for p in campaign.platforms]
-    
+
     db_campaign = models.Campaign(
         campaign_name=campaign.campaign_name,
         description=campaign.description,
@@ -88,15 +88,30 @@ def create_campaign(db: Session, campaign: schemas.CampaignCreate, user_id: int)
     db.add(db_campaign)
     db.commit()
     db.refresh(db_campaign)
-    
-    # Create keywords
-    for keyword_text in campaign.keywords:
+
+    # Generate smart keywords via LLM
+    try:
+        from .keyword_generator import generate_search_keywords
+        generated = generate_search_keywords(
+            name=campaign.campaign_name,
+            description=campaign.description,
+            raw_keywords=campaign.keywords,
+        )
+        db_campaign.generated_keywords = generated
+        db.commit()
+        print(f"[Campaign {db_campaign.campaign_id}] Generated keywords: {generated}")
+    except Exception as e:
+        print(f"[Campaign] Keyword generation failed: {e} — using original keywords")
+        generated = campaign.keywords
+
+    # Create Keyword rows from generated keywords (scrapers use these)
+    for keyword_text in generated:
         keyword = models.Keyword(
             campaign_id=db_campaign.campaign_id,
             keyword=keyword_text.strip()
         )
         db.add(keyword)
-    
+
     db.commit()
     db.refresh(db_campaign)
     return db_campaign
@@ -616,6 +631,17 @@ def create_nlp_analysis(db: Session, analysis_in: schemas.NLPAnalysisCreate) -> 
     db.add(obj)
     db.commit()
     return obj
+
+
+def create_or_update_nlp_analysis(db: Session, analysis_in: schemas.NLPAnalysisCreate) -> models.NLPAnalysis:
+    """Upsert NLPAnalysis — update existing row if present, insert if not."""
+    existing = get_analysis_by_data_id(db, analysis_in.data_id)
+    if existing:
+        for key, value in analysis_in.model_dump().items():
+            setattr(existing, key, value)
+        db.commit()
+        return existing
+    return create_nlp_analysis(db, analysis_in)
 
 
 def get_analysis_by_data_id(db: Session, data_id: int) -> models.NLPAnalysis | None:

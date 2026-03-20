@@ -92,12 +92,6 @@ def scrape_product_hunt_for_campaign(campaign_id: int):
             print(f"Campaign {campaign_id} not found.")
             return f"Campaign {campaign_id} not found"
 
-        # Check if already completed or scraping to avoid duplicate work
-        if campaign.status in [models.CampaignStatus.COMPLETED, models.CampaignStatus.SCRAPING]:
-            print(f"Campaign {campaign_id} is already {campaign.status}. Skipping.")
-            if campaign.status == models.CampaignStatus.COMPLETED:
-                return f"Campaign {campaign_id} already completed"
-
         crud.update_campaign_status(db, campaign_id, models.CampaignStatus.SCRAPING)
 
         # Get keywords

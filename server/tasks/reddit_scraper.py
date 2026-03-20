@@ -52,15 +52,6 @@ def scrape_reddit_for_campaign(campaign_id: int):
             print(f"Campaign {campaign_id} not found.")
             return
 
-        # Check if already completed or scraping to avoid duplicate work
-        if campaign.status in [models.CampaignStatus.COMPLETED, models.CampaignStatus.SCRAPING]:
-             print(f"Campaign {campaign_id} is already {campaign.status}. Skipping.")
-             # We might return here if we want to be strict, but let's proceed if it's just 'SCRAPING' 
-             # and we suspect it crashed or is a retry. 
-             # However, for rate limit issues caused by loop, returning here is safer.
-             if campaign.status == models.CampaignStatus.COMPLETED:
-                 return
-
         crud.update_campaign_status(db, campaign_id, models.CampaignStatus.SCRAPING)
 
         keyword_objs = crud.get_keywords_by_campaign(db, campaign_id)

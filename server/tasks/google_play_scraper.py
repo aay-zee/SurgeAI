@@ -73,10 +73,6 @@ def scrape_google_play_for_campaign(campaign_id: int):
         if not campaign:
             return f"Campaign {campaign_id} not found"
 
-        if campaign.status in [models.CampaignStatus.COMPLETED, models.CampaignStatus.SCRAPING]:
-            if campaign.status == models.CampaignStatus.COMPLETED:
-                return f"Campaign {campaign_id} already completed"
-
         crud.update_campaign_status(db, campaign_id, models.CampaignStatus.SCRAPING)
 
         keyword_objs = crud.get_keywords_by_campaign(db, campaign_id)

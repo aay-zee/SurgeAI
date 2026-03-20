@@ -412,3 +412,19 @@ class GoogleTrendsPoint(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class LLMAnalysisRead(BaseModel):
+    analysis_id: int
+    campaign_id: int
+    validation_scores: dict | None = None
+    themes: dict | None = None
+    competitor_analysis: dict | None = None
+    report_text: str | None = None
+    sentiment_results: dict | None = None
+    relevance_stats: dict | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
