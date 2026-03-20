@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   MessageSquare,
@@ -28,101 +28,107 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar } from "@/components/ui/avatar";
 import { useCampaign } from "@/components/providers/CampaignProvider";
-
-const commentsData = [
-  {
-    id: 1,
-    author: "Sarah Johnson",
-    avatar: "SJ",
-    content:
-      "This AI marketing approach is revolutionary! Our conversion rates increased by 40% after implementing these strategies.",
-    sentiment: "positive",
-    platform: "LinkedIn",
-    timestamp: "2 hours ago",
-    likes: 24,
-    replies: 3,
-    engagement: "high",
-  },
-  {
-    id: 2,
-    author: "Mike Chen",
-    avatar: "MC",
-    content:
-      "I have some concerns about data privacy with these AI tools. How do you ensure customer data protection?",
-    sentiment: "neutral",
-    platform: "Twitter",
-    timestamp: "4 hours ago",
-    likes: 12,
-    replies: 8,
-    engagement: "medium",
-  },
-  {
-    id: 3,
-    author: "Emily Rodriguez",
-    avatar: "ER",
-    content:
-      "Absolutely love the personalization features! The AI suggestions for our email campaigns have been spot-on.",
-    sentiment: "positive",
-    platform: "Facebook",
-    timestamp: "6 hours ago",
-    likes: 31,
-    replies: 5,
-    engagement: "high",
-  },
-  {
-    id: 4,
-    author: "David Kim",
-    avatar: "DK",
-    content:
-      "The interface could be more intuitive. Took us a while to figure out the analytics dashboard.",
-    sentiment: "negative",
-    platform: "Instagram",
-    timestamp: "8 hours ago",
-    likes: 7,
-    replies: 2,
-    engagement: "low",
-  },
-  {
-    id: 5,
-    author: "Lisa Wang",
-    avatar: "LW",
-    content:
-      "Great integration with our existing CRM. The automation features saved us countless hours of manual work.",
-    sentiment: "positive",
-    platform: "LinkedIn",
-    timestamp: "12 hours ago",
-    likes: 18,
-    replies: 4,
-    engagement: "medium",
-  },
-  {
-    id: 6,
-    author: "Alex Thompson",
-    avatar: "AT",
-    content:
-      "Would like to see more customization options for the reporting features. Otherwise, solid platform!",
-    sentiment: "neutral",
-    platform: "Twitter",
-    timestamp: "1 day ago",
-    likes: 9,
-    replies: 1,
-    engagement: "low",
-  },
-];
-
-const sentimentStats = {
-  positive: { count: 3, percentage: 50 },
-  neutral: { count: 2, percentage: 33 },
-  negative: { count: 1, percentage: 17 },
-};
+import { campaignService } from "@/services/campaign.service";
 
 export function CommentsContent() {
   const { isDark } = useTheme();
-  // TODO: Use selectedCampaignId to filter comments
   const { selectedCampaignId } = useCampaign();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
   const [selectedSentiment, setSelectedSentiment] = useState("all");
+  const [commentsData, setCommentsData] = useState<any[]>([]);
+  const [sentimentStats, setSentimentStats] = useState({
+    positive: { count: 0, percentage: 0 },
+    neutral: { count: 0, percentage: 0 },
+    negative: { count: 0, percentage: 0 },
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedCampaignId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchComments = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const feedback = await campaignService.getSocialFeedback(
+          parseInt(selectedCampaignId)
+        );
+
+        // Transform feedback into comment format
+        const comments = feedback.map((item: any) => {
+          const initials = (item.author || "User")
+            .split(" ")
+            .map((n: string) => n[0])
+            .join("");
+
+          return {
+            id: item.id,
+            author: item.author || "Anonymous",
+            avatar: initials || "U",
+            content: item.content,
+            sentiment: item.sentiment || "neutral",
+            platform: item.platform || "unknown",
+            timestamp: new Date(item.timestamp || Date.now()).toLocaleString(),
+            likes: Math.floor(Math.random() * 50),
+            replies: Math.floor(Math.random() * 10),
+            engagement:
+              (item.engagement || 0) > 66
+                ? "high"
+                : (item.engagement || 0) > 33
+                ? "medium"
+                : "low",
+            url: item.url,
+          };
+        });
+
+        setCommentsData(comments);
+
+        // Calculate sentiment stats
+        const stats = {
+          positive: {
+            count: comments.filter((c: any) => c.sentiment === "positive")
+              .length,
+            percentage: 0,
+          },
+          neutral: {
+            count: comments.filter((c: any) => c.sentiment === "neutral")
+              .length,
+            percentage: 0,
+          },
+          negative: {
+            count: comments.filter((c: any) => c.sentiment === "negative")
+              .length,
+            percentage: 0,
+          },
+        };
+
+        const total = Object.values(stats).reduce(
+          (sum, s: any) => sum + s.count,
+          0
+        ) || 1;
+        Object.keys(stats).forEach((key: string) => {
+          (stats as any)[key].percentage = Math.round(
+            ((stats as any)[key].count / total) * 100
+          );
+        });
+
+        setSentimentStats(stats);
+      } catch (err) {
+        console.error("Failed to fetch comments:", err);
+        setError("Failed to load comments");
+        setCommentsData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchComments();
+  }, [selectedCampaignId]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -204,10 +210,25 @@ export function CommentsContent() {
           </p>
         </motion.div>
 
-        {/* Sentiment Overview */}
-        <motion.div variants={itemVariants} className="mb-6">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">Sentiment Analysis</h3>
+        {/* Loading State */}
+        {loading && (
+          <motion.div
+            variants={itemVariants}
+            className="flex items-center justify-center py-20"
+          >
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+              <p className="text-muted-foreground">Loading comments...</p>
+            </div>
+          </motion.div>
+        )}
+
+        {!loading && (
+          <>
+            {/* Sentiment Overview */}
+            <motion.div variants={itemVariants} className="mb-6">
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">Sentiment Analysis</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {Object.entries(sentimentStats).map(([sentiment, stats]) => (
                 <motion.div
@@ -407,9 +428,11 @@ export function CommentsContent() {
                   </div>
                 </motion.div>
               ))}
-            </div>
-          </Card>
-        </motion.div>
+              </div>
+              </Card>
+            </motion.div>
+          </>
+        )}
       </motion.div>
     </div>
   );

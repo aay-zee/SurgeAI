@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   LineChart,
@@ -34,40 +34,59 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useCampaign } from "@/components/providers/CampaignProvider";
-
-const timeSeriesData = [
-  { date: "2024-01", visitors: 12400, conversions: 850, revenue: 25600 },
-  { date: "2024-02", visitors: 13200, conversions: 920, revenue: 28400 },
-  { date: "2024-03", visitors: 14800, conversions: 1120, revenue: 34200 },
-  { date: "2024-04", visitors: 16200, conversions: 1350, revenue: 42800 },
-  { date: "2024-05", visitors: 18600, conversions: 1580, revenue: 48900 },
-  { date: "2024-06", visitors: 20100, conversions: 1750, revenue: 52600 },
-  { date: "2024-07", visitors: 22400, conversions: 1920, revenue: 58400 },
-  { date: "2024-08", visitors: 25800, conversions: 2240, revenue: 67200 },
-  { date: "2024-09", visitors: 28900, conversions: 2580, revenue: 76800 },
-  { date: "2024-10", visitors: 32100, conversions: 2890, revenue: 86400 },
-];
-
-const channelData = [
-  { channel: "Organic Search", visitors: 45600, percentage: 42 },
-  { channel: "Social Media", visitors: 28400, percentage: 26 },
-  { channel: "Direct", visitors: 19200, percentage: 18 },
-  { channel: "Email", visitors: 10800, percentage: 10 },
-  { channel: "Paid Ads", visitors: 4320, percentage: 4 },
-];
-
-const deviceData = [
-  { device: "Desktop", sessions: 58400, percentage: 54 },
-  { device: "Mobile", sessions: 41200, percentage: 38 },
-  { device: "Tablet", sessions: 8640, percentage: 8 },
-];
+import { campaignService } from "@/services/campaign.service";
 
 export function AnalyticsContent() {
   const { isDark } = useTheme();
-  // TODO: Use selectedCampaignId to filter analytics data
   const { selectedCampaignId } = useCampaign();
   const [selectedMetric, setSelectedMetric] = useState("visitors");
   const [timeRange, setTimeRange] = useState("10m");
+  const [timeSeriesData, setTimeSeriesData] = useState<any[]>([]);
+  const [channelData, setChannelData] = useState<any[]>([]);
+  const [deviceData, setDeviceData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    totalVisitors: "0",
+    conversionRate: "0%",
+    revenue: "$0",
+    avgSession: "0m 0s",
+  });
+
+  useEffect(() => {
+    if (!selectedCampaignId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchAnalytics = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await campaignService.getAnalytics(
+          parseInt(selectedCampaignId)
+        );
+
+        setTimeSeriesData(data.time_series || []);
+        setChannelData(data.channels || []);
+        setDeviceData(data.devices || []);
+
+        setStats({
+          totalVisitors: data.total_visitors?.toLocaleString() || "0",
+          conversionRate: `${data.conversion_rate?.toFixed(1) || "0"}%`,
+          revenue: `$${(data.total_revenue || 0).toLocaleString()}`,
+          avgSession: "3m 24s",
+        });
+      } catch (err) {
+        console.error("Failed to fetch analytics:", err);
+        setError("Failed to load analytics data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAnalytics();
+  }, [selectedCampaignId]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -169,41 +188,56 @@ export function AnalyticsContent() {
           </div>
         </motion.div>
 
-        {/* KPI Cards */}
-        <motion.div
-          variants={itemVariants}
-          className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
-        >
-          {[
-            {
-              title: "Total Visitors",
-              value: "32.1K",
-              change: "+12.5%",
-              icon: Users,
-              color: "cyan",
-            },
-            {
-              title: "Conversion Rate",
-              value: "9.2%",
-              change: "+2.1%",
-              icon: MousePointerClick,
-              color: "emerald",
-            },
-            {
-              title: "Revenue",
-              value: "$86.4K",
-              change: "+18.3%",
-              icon: DollarSign,
-              color: "purple",
-            },
-            {
-              title: "Avg. Session",
-              value: "3m 24s",
-              change: "+8.7%",
-              icon: TrendingUp,
-              color: "indigo",
-            },
-          ].map((kpi, index) => (
+        {/* Loading State */}
+        {loading && (
+          <motion.div
+            variants={itemVariants}
+            className="flex items-center justify-center py-20"
+          >
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+              <p className="text-muted-foreground">Loading analytics...</p>
+            </div>
+          </motion.div>
+        )}
+
+        {!loading && (
+          <>
+            {/* KPI Cards */}
+            <motion.div
+              variants={itemVariants}
+              className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8"
+            >
+              {[
+                {
+                  title: "Total Visitors",
+                  value: stats.totalVisitors,
+                  change: "+12.5%",
+                  icon: Users,
+                  color: "cyan",
+                },
+                {
+                  title: "Conversion Rate",
+                  value: stats.conversionRate,
+                  change: "+2.1%",
+                  icon: MousePointerClick,
+                  color: "emerald",
+                },
+                {
+                  title: "Revenue",
+                  value: stats.revenue,
+                  change: "+18.3%",
+                  icon: DollarSign,
+                  color: "purple",
+                },
+                {
+                  title: "Avg. Session",
+                  value: stats.avgSession,
+                  change: "+8.7%",
+                  icon: TrendingUp,
+                  color: "indigo",
+                },
+              ].map((kpi, index) => (
             <motion.div
               key={kpi.title}
               initial={{ opacity: 0, scale: 0.9 }}
@@ -401,8 +435,10 @@ export function AnalyticsContent() {
                 </ResponsiveContainer>
               </div>
             </Card>
-          </motion.div>
-        </div>
+              </motion.div>
+            </div>
+          </>
+        )}
       </motion.div>
     </div>
   );

@@ -4,21 +4,64 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Sparkles, RefreshCw, TrendingUp } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
-
-const suggestions = [
-  "Based on your engagement patterns, consider posting content between 2-4 PM for 23% higher reach. Your audience is most active during these hours.",
-  "AI analysis suggests focusing on 'automation' and 'personalization' keywords - they show 45% higher conversion rates in your campaigns.",
-  "Your positive sentiment is strong at 68%. Try A/B testing emotional storytelling in your next campaign to push it above 75%.",
-  "Consider expanding your video content strategy. Video posts generate 3x more engagement than static content in your analytics.",
-  "Your email marketing performance could improve by 31% with AI-optimized send times and personalized subject lines.",
-];
+import { useCampaign } from "@/components/providers/CampaignProvider";
+import { campaignService } from "@/services/campaign.service";
 
 export function AIMarketingSuggestion() {
   const { isDark } = useTheme();
+  const { selectedCampaignId } = useCampaign();
   const [currentSuggestion, setCurrentSuggestion] = useState(0);
   const [displayedText, setDisplayedText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([
+    "Loading AI suggestions...",
+  ]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch and generate suggestions based on campaign data
+  useEffect(() => {
+    if (!selectedCampaignId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchSuggestions = async () => {
+      try {
+        setLoading(true);
+        const sentiment = await campaignService.getCampaignSentimentSummary(
+          parseInt(selectedCampaignId)
+        );
+        const scrapedData = await campaignService.getCampaignScrapedData(
+          parseInt(selectedCampaignId)
+        );
+
+        const positivePercent = sentiment?.percentages?.positive || 0;
+        const totalEngagement = scrapedData?.length || 0;
+
+        const generatedSuggestions = [
+          `Your campaign has ${totalEngagement} total data points collected. Focus on the highest-performing keywords to maximize ROI.`,
+          `Positive sentiment is at ${positivePercent.toFixed(1)}%. ${positivePercent > 70 ? "Excellent! Continue your current strategy." : "There's room for improvement. Consider refining your messaging."}`,
+          `With ${Math.max(1, Math.floor(totalEngagement / 100))} hundred+ data points, you have solid market validation. Scale your campaigns across more platforms.`,
+          `Data shows consistent engagement patterns. Create targeted content for your top-performing keywords and audience segments.`,
+          `Your campaign validation is underway. Review the sentiment distribution to identify customer pain points and opportunities.`,
+        ];
+
+        setSuggestions(generatedSuggestions);
+      } catch (err) {
+        console.error("Failed to generate suggestions:", err);
+        setSuggestions([
+          "AI suggestions will appear once data collection is complete.",
+          "Your campaign is being analyzed for actionable insights.",
+          "Check back soon for personalized marketing recommendations.",
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSuggestions();
+  }, [selectedCampaignId]);
 
   const typewriterEffect = (text: string) => {
     setIsTyping(true);
@@ -52,6 +95,18 @@ export function AIMarketingSuggestion() {
     }, 1000);
   };
 
+  if (loading) {
+    return (
+      <Card className="p-6 h-96 flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 via-indigo-500/10 to-purple-500/10" />
+        <div className="text-center relative z-10">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+          <p className="text-muted-foreground">Generating AI suggestions...</p>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card className="p-6 h-96 relative overflow-hidden">
       {/* Gradient Background */}
@@ -60,7 +115,7 @@ export function AIMarketingSuggestion() {
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5,  }}
+        transition={{ duration: 0.5 }}
         className="relative h-full flex flex-col"
       >
         <div className="flex items-center justify-between mb-6">

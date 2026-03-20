@@ -18,6 +18,9 @@ class Platform(str, enum.Enum):
     HACKER_NEWS = "hacker_news"
     TWITTER = "twitter"
     QUORA = "quora"
+    PRODUCT_HUNT = "product_hunt"
+    GOOGLE_PLAY = "google_play"
+    SEARCH_VOLUME = "search_volume"
 
 
 class CampaignPlatform(str, enum.Enum):
@@ -26,6 +29,9 @@ class CampaignPlatform(str, enum.Enum):
     TWITTER = "twitter"
     QUORA = "quora"
     GOOGLE_TRENDS = "google_trends"
+    PRODUCT_HUNT = "product_hunt"
+    GOOGLE_PLAY = "google_play"
+    SEARCH_VOLUME = "search_volume"
 
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
@@ -75,8 +81,13 @@ class Campaign(Base):
     scraped_data = relationship("ScrapedData", back_populates="campaign")
     generated_comments = relationship("GeneratedComment", back_populates="campaign")
     validation_results = relationship("ValidationResult", back_populates="campaign")
+    validation_scores = relationship("ValidationScore", back_populates="campaign")
     reddit_data = relationship("RedditData", back_populates="campaign")
     hackernews_data = relationship("HackerNewsData", back_populates="campaign")
+    product_hunt_data = relationship("ProductHuntData", back_populates="campaign")
+    quora_data = relationship("QuoraData", back_populates="campaign")
+    google_play_data = relationship("GooglePlayData", back_populates="campaign")
+    search_volume_data = relationship("SearchVolumeData", back_populates="campaign")
     google_trends_points = relationship("GoogleTrendsPoint", back_populates="campaign")
 
 class Keyword(Base):
@@ -92,6 +103,10 @@ class Keyword(Base):
     scraped_data = relationship("ScrapedData", back_populates="keyword")
     reddit_data = relationship("RedditData", back_populates="keyword")
     hackernews_data = relationship("HackerNewsData", back_populates="keyword")
+    product_hunt_data = relationship("ProductHuntData", back_populates="keyword")
+    quora_data = relationship("QuoraData", back_populates="keyword")
+    google_play_data = relationship("GooglePlayData", back_populates="keyword")
+    search_volume_data = relationship("SearchVolumeData", back_populates="keyword_obj")
     google_trends_points = relationship("GoogleTrendsPoint", back_populates="keyword")
 
 
@@ -139,6 +154,139 @@ class HackerNewsData(Base):
 
     campaign = relationship("Campaign", back_populates="hackernews_data")
     keyword = relationship("Keyword", back_populates="hackernews_data")
+
+
+class ProductHuntData(Base):
+    __tablename__ = "product_hunt_data"
+    ph_data_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
+    keyword_id = Column(Integer, ForeignKey("keywords.keyword_id"), nullable=True, index=True)
+    source_product_id = Column(String(100), nullable=False, index=True)
+    product_url = Column(String, nullable=False)
+    product_name = Column(String, nullable=False)
+    tagline = Column(String, nullable=True)
+    description = Column(Text, nullable=False)
+    category = Column(String, nullable=True)
+    upvotes = Column(Integer, default=0)
+    comments_count = Column(Integer, default=0)
+    maker_name = Column(String, nullable=True)
+    engagement_score = Column(Integer, default=0)
+    scraped_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "source_product_id", name="uq_ph_campaign_source_product"),
+    )
+
+    campaign = relationship("Campaign", back_populates="product_hunt_data")
+    keyword = relationship("Keyword", back_populates="product_hunt_data")
+
+
+class QuoraData(Base):
+    __tablename__ = "quora_data"
+    quora_data_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
+    keyword_id = Column(Integer, ForeignKey("keywords.keyword_id"), nullable=True, index=True)
+    source_post_id = Column(String(500), nullable=False, index=True)
+    question_url = Column(String, nullable=False)
+    question_title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    top_answer = Column(Text, nullable=True)
+    author = Column(String, nullable=True)
+    upvotes = Column(Integer, default=0)
+    answer_count = Column(Integer, default=0)
+    engagement_score = Column(Integer, default=0)
+    scraped_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "source_post_id", name="uq_quora_campaign_source"),
+    )
+
+    campaign = relationship("Campaign", back_populates="quora_data")
+    keyword = relationship("Keyword", back_populates="quora_data")
+
+
+class GooglePlayData(Base):
+    __tablename__ = "google_play_data"
+    gp_data_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
+    keyword_id = Column(Integer, ForeignKey("keywords.keyword_id"), nullable=True, index=True)
+    app_id = Column(String(200), nullable=False, index=True)
+    app_name = Column(String, nullable=False)
+    app_url = Column(String, nullable=True)
+    developer = Column(String, nullable=True)
+    app_rating = Column(Float, nullable=True)
+    review_id = Column(String(200), nullable=False, index=True)
+    review_content = Column(Text, nullable=True)
+    review_rating = Column(Integer, nullable=True)
+    reviewer_name = Column(String, nullable=True)
+    thumbs_up = Column(Integer, default=0)
+    engagement_score = Column(Integer, default=0)
+    scraped_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "review_id", name="uq_gp_campaign_review"),
+    )
+
+    campaign = relationship("Campaign", back_populates="google_play_data")
+    keyword = relationship("Keyword", back_populates="google_play_data")
+
+
+class SearchVolumeData(Base):
+    __tablename__ = "search_volume_data"
+    volume_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
+    keyword_id = Column(Integer, ForeignKey("keywords.keyword_id"), nullable=False, index=True)
+    keyword = Column(String, nullable=False)
+    monthly_volume = Column(Integer, default=0)
+    competition = Column(String(20), nullable=True)
+    competition_index = Column(Integer, nullable=True)
+    cpc = Column(Float, nullable=True)
+    trend_direction = Column(String(20), nullable=True)
+    captured_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("campaign_id", "keyword_id", name="uq_sv_campaign_keyword"),
+    )
+
+    campaign = relationship("Campaign", back_populates="search_volume_data")
+    keyword_obj = relationship("Keyword", back_populates="search_volume_data")
+
+
+class ValidationScore(Base):
+    __tablename__ = "validation_scores"
+    score_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
+
+    # 8 Dimension Scores (1-10 each)
+    market_size = Column(Integer, nullable=False)
+    demand = Column(Integer, nullable=False)
+    problem_clarity = Column(Integer, nullable=False)
+    competitor_gap = Column(Integer, nullable=False)
+    technical_feasibility = Column(Integer, nullable=False)
+    market_growth = Column(Integer, nullable=False)
+    pain_point_severity = Column(Integer, nullable=False)
+    monetization_potential = Column(Integer, nullable=False)
+
+    # Evidence/reasoning for each (stored as JSON or text)
+    market_size_reason = Column(String, nullable=True)
+    demand_reason = Column(String, nullable=True)
+    problem_clarity_reason = Column(String, nullable=True)
+    competitor_gap_reason = Column(String, nullable=True)
+    technical_feasibility_reason = Column(String, nullable=True)
+    market_growth_reason = Column(String, nullable=True)
+    pain_point_severity_reason = Column(String, nullable=True)
+    monetization_potential_reason = Column(String, nullable=True)
+
+    # Overall metrics
+    overall_score = Column(Float, nullable=True)  # Average of 8 dimensions
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("campaign_id", name="uq_validation_score_campaign"),
+    )
+
+    campaign = relationship("Campaign", back_populates="validation_scores")
 
 
 class GoogleTrendsPoint(Base):

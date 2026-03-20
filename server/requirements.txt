@@ -6,6 +6,11 @@ pydantic
 celery
 redis
 praw
+requests
+beautifulsoup4
+lxml
+google-play-scraper
+google-search-results
 python-dotenv
 python-jose[cryptography]
 passlib[bcrypt]
@@ -13,9 +18,8 @@ bcrypt<4.0.0  # Pin to version compatible with passlib 1.7.4
 python-multipart
 email-validator
 fastapi-mail
-transformers
-torch
 jinja2<3.1.0
 streamlit
 pandas
 pytrends
+gradio_client

@@ -62,9 +62,17 @@ def scrape_reddit_for_campaign(campaign_id: int):
                  return
 
         crud.update_campaign_status(db, campaign_id, models.CampaignStatus.SCRAPING)
-        
+
         keyword_objs = crud.get_keywords_by_campaign(db, campaign_id)
-        keywords = [k.keyword for k in keyword_objs]
+        keywords = [k.keyword.strip() for k in keyword_objs if k.keyword and k.keyword.strip()]
+        if not keywords:
+            print(f"No keywords found for campaign {campaign_id}")
+            crud.update_campaign_status(db, campaign_id, models.CampaignStatus.COMPLETED)
+            return f"No keywords for campaign {campaign_id}"
+
+        # Create keyword lookup for matching posts to keywords
+        keyword_lookup = {k.keyword.strip().lower(): k.keyword_id for k in keyword_objs if k.keyword}
+
         print(f"Starting scraping for campaign '{campaign.campaign_name}' with keywords: {keywords}")
 
         # 1. Build the search query
@@ -81,6 +89,9 @@ def scrape_reddit_for_campaign(campaign_id: int):
         # 4. Process posts
         inserted_reddit_rows = 0
         inserted_scraped_rows = 0
+        per_keyword_posts = {}
+        per_keyword_engagement = {}
+
         for submission in posts:
             if not submission.is_self:
                 continue
@@ -89,9 +100,19 @@ def scrape_reddit_for_campaign(campaign_id: int):
             comments_count = int(getattr(submission, "num_comments", 0) or 0)
             engagement_score = max(score, 0) + max(comments_count, 0)
 
+            # Match post to keyword (find which keyword this post matches)
+            post_title = submission.title.lower()
+            post_content = submission.selftext.lower()
+            matched_keyword_id = None
+
+            for keyword in keywords:
+                if keyword.lower() in post_title or keyword.lower() in post_content:
+                    matched_keyword_id = keyword_lookup.get(keyword.lower())
+                    break
+
             reddit_row = models.RedditData(
                 campaign_id=campaign_id,
-                keyword_id=None,
+                keyword_id=matched_keyword_id,
                 source_post_id=str(submission.id),
                 post_url=submission.permalink,
                 title=submission.title,
@@ -110,6 +131,7 @@ def scrape_reddit_for_campaign(campaign_id: int):
             # Create ScrapedData object and save to DB
             scraped_data = models.ScrapedData(
                 campaign_id=campaign_id,
+                keyword_id=matched_keyword_id,
                 platform=models.Platform.REDDIT,
                 post_id=campaign_scoped_post_id,
                 post_url=submission.permalink,
@@ -117,10 +139,24 @@ def scrape_reddit_for_campaign(campaign_id: int):
                 author=str(submission.author or "unknown"),
                 engagement_score=engagement_score,
             )
-            
+
             created_scraped = crud.create_scraped_data(db, scraped_data)
             if created_scraped:
                 inserted_scraped_rows += 1
+                if matched_keyword_id:
+                    per_keyword_posts[matched_keyword_id] = per_keyword_posts.get(matched_keyword_id, 0) + 1
+                    per_keyword_engagement[matched_keyword_id] = per_keyword_engagement.get(matched_keyword_id, 0) + engagement_score
+
+        # Update keyword activity statistics
+        for keyword_id, post_count in per_keyword_posts.items():
+            engagement = per_keyword_engagement.get(keyword_id, 0)
+            crud.update_keyword_activity(
+                db=db,
+                keyword_id=keyword_id,
+                platform=models.Platform.REDDIT,
+                post_count=post_count,
+                engagement_count=engagement,
+            )
         
         print(
             f"Finished Reddit scraping for campaign {campaign_id}. "

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   PieChart,
@@ -10,15 +10,66 @@ import {
 } from "recharts";
 import { Card } from "@/components/ui/card";
 import { useTheme } from "@/components/theme-provider";
-
-const data = [
-  { name: "Positive", value: 68, color: "#10b981" },
-  { name: "Neutral", value: 22, color: "#f59e0b" },
-  { name: "Negative", value: 10, color: "#ef4444" },
-];
+import { useCampaign } from "@/components/providers/CampaignProvider";
+import { campaignService } from "@/services/campaign.service";
 
 export function SentimentDistribution() {
   const { isDark } = useTheme();
+  const { selectedCampaignId } = useCampaign();
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedCampaignId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchSentimentData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const summary = await campaignService.getCampaignSentimentSummary(
+          parseInt(selectedCampaignId)
+        );
+
+        if (summary && summary.percentages) {
+          const chartData = [
+            {
+              name: "Positive",
+              value: summary.percentages.positive || 0,
+              color: "#10b981",
+            },
+            {
+              name: "Neutral",
+              value: summary.percentages.neutral || 0,
+              color: "#f59e0b",
+            },
+            {
+              name: "Negative",
+              value: summary.percentages.negative || 0,
+              color: "#ef4444",
+            },
+          ];
+          setData(chartData);
+        }
+      } catch (err: any) {
+        console.error("Failed to fetch sentiment data:", err);
+        setError("No sentiment data available");
+        // Show fallback data
+        setData([
+          { name: "Positive", value: 0, color: "#10b981" },
+          { name: "Neutral", value: 0, color: "#f59e0b" },
+          { name: "Negative", value: 0, color: "#ef4444" },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSentimentData();
+  }, [selectedCampaignId]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
@@ -32,7 +83,7 @@ export function SentimentDistribution() {
         >
           <p className="font-medium">{payload[0].name}</p>
           <p className="text-sm text-muted-foreground">
-            {payload[0].value}% of total sentiment
+            {payload[0].value.toFixed(1)}% of total sentiment
           </p>
         </div>
       );
@@ -40,12 +91,39 @@ export function SentimentDistribution() {
     return null;
   };
 
+  const positivePercentage =
+    data.find((d) => d.name === "Positive")?.value || 0;
+
+  if (loading) {
+    return (
+      <Card className="p-6 h-96 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+          <p className="text-muted-foreground">Loading sentiment data...</p>
+        </div>
+      </Card>
+    );
+  }
+
+  if (error && data.every((d) => d.value === 0)) {
+    return (
+      <Card className="p-6 h-96 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">{error}</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Data will appear after campaign scraping completes
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card className="p-6 h-96">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5,  }}
+        transition={{ duration: 0.5 }}
       >
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -96,9 +174,11 @@ export function SentimentDistribution() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <p className="text-2xl font-bold text-emerald-500">68%</p>
+          <p className="text-2xl font-bold text-emerald-500">
+            {positivePercentage.toFixed(1)}%
+          </p>
           <p className="text-sm text-muted-foreground">
-            Positive sentiment this month
+            Positive sentiment
           </p>
         </motion.div>
       </motion.div>

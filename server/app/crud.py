@@ -188,6 +188,198 @@ def get_hackernews_data_for_campaign(
     return q.order_by(models.HackerNewsData.scraped_at.desc()).limit(limit).all()
 
 
+def create_product_hunt_data(db: Session, data: models.ProductHuntData):
+    """Insert a Product Hunt row if it does not already exist for the campaign."""
+    exists = (
+        db.query(models.ProductHuntData)
+        .filter(models.ProductHuntData.campaign_id == data.campaign_id)
+        .filter(models.ProductHuntData.source_product_id == data.source_product_id)
+        .first()
+    )
+    if exists:
+        return None
+
+    db.add(data)
+    db.commit()
+    db.refresh(data)
+    return data
+
+
+def get_product_hunt_data_for_campaign(
+    db: Session,
+    campaign_id: int,
+    keyword_id: int | None = None,
+    limit: int = 200,
+):
+    """Return Product Hunt rows for a campaign for source-specific display."""
+    q = db.query(models.ProductHuntData).filter(
+        models.ProductHuntData.campaign_id == campaign_id
+    )
+
+    if keyword_id:
+        q = q.filter(models.ProductHuntData.keyword_id == keyword_id)
+
+    return q.order_by(models.ProductHuntData.scraped_at.desc()).limit(limit).all()
+
+
+def create_quora_data(db: Session, data: models.QuoraData):
+    """Insert a Quora row if it does not already exist for the campaign."""
+    exists = (
+        db.query(models.QuoraData)
+        .filter(models.QuoraData.campaign_id == data.campaign_id)
+        .filter(models.QuoraData.source_post_id == data.source_post_id)
+        .first()
+    )
+    if exists:
+        return None
+
+    db.add(data)
+    db.commit()
+    db.refresh(data)
+    return data
+
+
+def get_quora_data_for_campaign(
+    db: Session,
+    campaign_id: int,
+    keyword_id: int | None = None,
+    limit: int = 200,
+):
+    """Return Quora rows for a campaign for source-specific display."""
+    q = db.query(models.QuoraData).filter(
+        models.QuoraData.campaign_id == campaign_id
+    )
+
+    if keyword_id:
+        q = q.filter(models.QuoraData.keyword_id == keyword_id)
+
+    return q.order_by(models.QuoraData.scraped_at.desc()).limit(limit).all()
+
+
+def create_google_play_data(db: Session, data: models.GooglePlayData):
+    """Insert a Google Play review row if it does not already exist for the campaign."""
+    exists = (
+        db.query(models.GooglePlayData)
+        .filter(models.GooglePlayData.campaign_id == data.campaign_id)
+        .filter(models.GooglePlayData.review_id == data.review_id)
+        .first()
+    )
+    if exists:
+        return None
+
+    db.add(data)
+    db.commit()
+    db.refresh(data)
+    return data
+
+
+def get_google_play_data_for_campaign(
+    db: Session,
+    campaign_id: int,
+    keyword_id: int | None = None,
+    limit: int = 200,
+):
+    """Return Google Play review rows for a campaign for source-specific display."""
+    q = db.query(models.GooglePlayData).filter(
+        models.GooglePlayData.campaign_id == campaign_id
+    )
+
+    if keyword_id:
+        q = q.filter(models.GooglePlayData.keyword_id == keyword_id)
+
+    return q.order_by(models.GooglePlayData.scraped_at.desc()).limit(limit).all()
+
+
+
+def upsert_search_volume_data(db: Session, data: models.SearchVolumeData):
+    """Insert or update search volume data for a keyword in a campaign."""
+    existing = (
+        db.query(models.SearchVolumeData)
+        .filter(models.SearchVolumeData.campaign_id == data.campaign_id)
+        .filter(models.SearchVolumeData.keyword_id == data.keyword_id)
+        .first()
+    )
+
+    if existing:
+        # Update existing record
+        existing.monthly_volume = data.monthly_volume
+        existing.competition = data.competition
+        existing.competition_index = data.competition_index
+        existing.cpc = data.cpc
+        existing.trend_direction = data.trend_direction
+        db.commit()
+        db.refresh(existing)
+        return existing
+    else:
+        # Create new record
+        db.add(data)
+        db.commit()
+        db.refresh(data)
+        return data
+
+
+def get_search_volume_data_for_campaign(
+    db: Session,
+    campaign_id: int,
+    limit: int = 200,
+):
+    """Return search volume data for a campaign, ordered by monthly volume descending."""
+    return (
+        db.query(models.SearchVolumeData)
+        .filter(models.SearchVolumeData.campaign_id == campaign_id)
+        .order_by(models.SearchVolumeData.monthly_volume.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def create_or_update_validation_score(db: Session, validation_score: models.ValidationScore):
+    """Insert or update validation scores for a campaign."""
+    existing = (
+        db.query(models.ValidationScore)
+        .filter(models.ValidationScore.campaign_id == validation_score.campaign_id)
+        .first()
+    )
+
+    if existing:
+        # Update existing
+        existing.market_size = validation_score.market_size
+        existing.demand = validation_score.demand
+        existing.problem_clarity = validation_score.problem_clarity
+        existing.competitor_gap = validation_score.competitor_gap
+        existing.technical_feasibility = validation_score.technical_feasibility
+        existing.market_growth = validation_score.market_growth
+        existing.pain_point_severity = validation_score.pain_point_severity
+        existing.monetization_potential = validation_score.monetization_potential
+        existing.market_size_reason = validation_score.market_size_reason
+        existing.demand_reason = validation_score.demand_reason
+        existing.problem_clarity_reason = validation_score.problem_clarity_reason
+        existing.competitor_gap_reason = validation_score.competitor_gap_reason
+        existing.technical_feasibility_reason = validation_score.technical_feasibility_reason
+        existing.market_growth_reason = validation_score.market_growth_reason
+        existing.pain_point_severity_reason = validation_score.pain_point_severity_reason
+        existing.monetization_potential_reason = validation_score.monetization_potential_reason
+        existing.overall_score = validation_score.overall_score
+        db.commit()
+        db.refresh(existing)
+        return existing
+    else:
+        # Create new
+        db.add(validation_score)
+        db.commit()
+        db.refresh(validation_score)
+        return validation_score
+
+
+def get_validation_score_for_campaign(db: Session, campaign_id: int):
+    """Get validation scores for a campaign."""
+    return (
+        db.query(models.ValidationScore)
+        .filter(models.ValidationScore.campaign_id == campaign_id)
+        .first()
+    )
+
+
 def get_scraped_data_for_campaign(
     db: Session, 
     campaign_id: int, 
@@ -423,7 +615,6 @@ def create_nlp_analysis(db: Session, analysis_in: schemas.NLPAnalysisCreate) -> 
     obj = models.NLPAnalysis(**analysis_in.model_dump())
     db.add(obj)
     db.commit()
-    db.refresh(obj)
     return obj
 
 

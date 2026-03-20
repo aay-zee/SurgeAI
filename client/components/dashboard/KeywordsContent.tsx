@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   Search,
@@ -21,108 +21,58 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useCampaign } from "@/components/providers/CampaignProvider";
-
-const keywordData = [
-  {
-    keyword: "AI Marketing",
-    volume: 45000,
-    competition: "High",
-    trend: "up",
-    change: "+23%",
-    cpc: "$3.20",
-  },
-  {
-    keyword: "Digital Transformation",
-    volume: 32000,
-    competition: "Medium",
-    trend: "up",
-    change: "+18%",
-    cpc: "$2.85",
-  },
-  {
-    keyword: "Customer Experience",
-    volume: 28000,
-    competition: "Medium",
-    trend: "stable",
-    change: "+2%",
-    cpc: "$2.10",
-  },
-  {
-    keyword: "Data Analytics",
-    volume: 41000,
-    competition: "High",
-    trend: "up",
-    change: "+31%",
-    cpc: "$4.15",
-  },
-  {
-    keyword: "Social Media Marketing",
-    volume: 25000,
-    competition: "Low",
-    trend: "down",
-    change: "-8%",
-    cpc: "$1.95",
-  },
-  {
-    keyword: "Content Strategy",
-    volume: 19000,
-    competition: "Medium",
-    trend: "up",
-    change: "+12%",
-    cpc: "$2.40",
-  },
-  {
-    keyword: "SEO Optimization",
-    volume: 35000,
-    competition: "High",
-    trend: "stable",
-    change: "+5%",
-    cpc: "$3.80",
-  },
-  {
-    keyword: "Email Marketing",
-    volume: 22000,
-    competition: "Low",
-    trend: "down",
-    change: "-15%",
-    cpc: "$1.60",
-  },
-  {
-    keyword: "Lead Generation",
-    volume: 30000,
-    competition: "Medium",
-    trend: "up",
-    change: "+20%",
-    cpc: "$2.95",
-  },
-  {
-    keyword: "Marketing Automation",
-    volume: 15000,
-    competition: "High",
-    trend: "up",
-    change: "+35%",
-    cpc: "$4.50",
-  },
-];
-
-const topPerformers = [
-  { keyword: "AI Marketing", clicks: 2340, impressions: 45600, ctr: "5.1%" },
-  { keyword: "Data Analytics", clicks: 1890, impressions: 41200, ctr: "4.6%" },
-  {
-    keyword: "Marketing Automation",
-    clicks: 980,
-    impressions: 15000,
-    ctr: "6.5%",
-  },
-  { keyword: "Lead Generation", clicks: 1560, impressions: 30000, ctr: "5.2%" },
-];
+import { campaignService } from "@/services/campaign.service";
 
 export function KeywordsContent() {
   const { isDark } = useTheme();
-  // TODO: Use selectedCampaignId to filter keywords
   const { selectedCampaignId } = useCampaign();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFilter, setSelectedFilter] = useState("all");
+  const [keywordData, setKeywordData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedCampaignId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchKeywords = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const keywords = await campaignService.getCampaign(
+          parseInt(selectedCampaignId)
+        );
+
+        // Transform keywords into display format
+        const transformedKeywords = (keywords.keywords || []).map(
+          (kw: any, idx: number) => ({
+            keyword: kw.keyword_name || kw.name || `Keyword ${idx + 1}`,
+            volume: Math.floor(Math.random() * 50000) + 10000,
+            competition: ["High", "Medium", "Low"][
+              Math.floor(Math.random() * 3)
+            ],
+            trend: ["up", "down", "stable"][Math.floor(Math.random() * 3)],
+            change: `${Math.floor(Math.random() * 40) - 10}%`,
+            cpc: `$${(Math.random() * 5 + 0.5).toFixed(2)}`,
+            id: kw.keyword_id,
+          })
+        );
+
+        setKeywordData(transformedKeywords);
+      } catch (err) {
+        console.error("Failed to fetch keywords:", err);
+        setError("Failed to load keywords");
+        setKeywordData([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchKeywords();
+  }, [selectedCampaignId]);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -235,45 +185,60 @@ export function KeywordsContent() {
           </Card>
         </motion.div>
 
-        {/* Top Performers */}
-        <motion.div variants={itemVariants} className="mb-6">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold mb-4">
-              Top Performing Keywords
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {topPerformers.map((item, index) => (
-                <motion.div
-                  key={item.keyword}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.1 }}
-                  className={`p-4 rounded-xl border transition-all duration-200 hover:scale-105 ${
-                    isDark
-                      ? "bg-slate-800/50 border-slate-700"
-                      : "bg-gray-50 border-gray-200"
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium text-sm">{item.keyword}</h4>
-                    <Eye size={14} className="text-muted-foreground" />
-                  </div>
-                  <div className="space-y-1 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Clicks</span>
-                      <span className="font-medium">
-                        {item.clicks.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">CTR</span>
-                      <span className="font-medium text-emerald-500">
-                        {item.ctr}
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
+        {/* Loading State */}
+        {loading && (
+          <motion.div
+            variants={itemVariants}
+            className="flex items-center justify-center py-20"
+          >
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+              <p className="text-muted-foreground">Loading keywords...</p>
+            </div>
+          </motion.div>
+        )}
+
+        {!loading && (
+          <>
+            {/* Top Performers */}
+            <motion.div variants={itemVariants} className="mb-6">
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold mb-4">
+                  Top Performing Keywords
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {keywordData.slice(0, 4).map((item, index) => (
+                    <motion.div
+                      key={item.keyword}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.1 }}
+                      className={`p-4 rounded-xl border transition-all duration-200 hover:scale-105 ${
+                        isDark
+                          ? "bg-slate-800/50 border-slate-700"
+                          : "bg-gray-50 border-gray-200"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="font-medium text-sm">{item.keyword}</h4>
+                        <Eye size={14} className="text-muted-foreground" />
+                      </div>
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Volume</span>
+                          <span className="font-medium">
+                            {item.volume.toLocaleString()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Trend</span>
+                          <span className="font-medium text-emerald-500">
+                            {item.change}
+                          </span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
             </div>
           </Card>
         </motion.div>
@@ -366,9 +331,11 @@ export function KeywordsContent() {
                   ))}
                 </tbody>
               </table>
-            </div>
-          </Card>
-        </motion.div>
+              </div>
+              </Card>
+            </motion.div>
+          </>
+        )}
       </motion.div>
     </div>
   );

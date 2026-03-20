@@ -1,7 +1,19 @@
 """Google Trends API client helpers."""
 
 from typing import Any
-import pytrends
+
+# Monkey-patch urllib3 Retry to fix pytrends compatibility with urllib3 v2
+# (urllib3 v2 renamed 'method_whitelist' → 'allowed_methods')
+import urllib3.util.retry
+_OrigRetry = urllib3.util.retry.Retry
+_orig_init = _OrigRetry.__init__
+
+def _patched_init(self, *args, **kwargs):
+    if "method_whitelist" in kwargs:
+        kwargs["allowed_methods"] = kwargs.pop("method_whitelist")
+    _orig_init(self, *args, **kwargs)
+
+urllib3.util.retry.Retry.__init__ = _patched_init
 
 
 def create_google_trends_client(
@@ -23,4 +35,5 @@ def create_google_trends_client(
         tz=tz,
         retries=retries,
         backoff_factor=backoff_factor,
+        timeout=(10, 30),
     )

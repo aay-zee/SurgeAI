@@ -25,7 +25,7 @@ def scrape_hackernews_for_campaign(campaign_id: int):
 
         keyword_lookup = {k.keyword.strip().lower(): k.keyword_id for k in keyword_objs if k.keyword}
 
-        extracted_rows = extract_hackernews_posts(keywords=keywords, hits_per_keyword=20)
+        extracted_rows = extract_hackernews_posts(keywords=keywords, hits_per_keyword=10)
         normalized_rows = normalize_hackernews_hits(
             campaign_id=campaign_id,
             keyword_lookup=keyword_lookup,

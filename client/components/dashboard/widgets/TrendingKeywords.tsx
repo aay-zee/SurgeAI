@@ -1,29 +1,74 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { Card } from "@/components/ui/card";
 import { useTheme } from "@/components/theme-provider";
-
-const keywords = [
-  { text: "AI Marketing", weight: 100, trend: "up" },
-  { text: "Digital Transformation", weight: 85, trend: "up" },
-  { text: "Customer Experience", weight: 78, trend: "stable" },
-  { text: "Data Analytics", weight: 92, trend: "up" },
-  { text: "Social Media", weight: 65, trend: "down" },
-  { text: "Brand Awareness", weight: 70, trend: "up" },
-  { text: "ROI Optimization", weight: 88, trend: "up" },
-  { text: "Content Strategy", weight: 75, trend: "stable" },
-  { text: "Lead Generation", weight: 82, trend: "up" },
-  { text: "Email Marketing", weight: 58, trend: "down" },
-  { text: "SEO", weight: 68, trend: "stable" },
-  { text: "Automation", weight: 95, trend: "up" },
-  { text: "Personalization", weight: 87, trend: "up" },
-  { text: "Conversion Rate", weight: 79, trend: "up" },
-  { text: "Machine Learning", weight: 91, trend: "up" },
-];
+import { useCampaign } from "@/components/providers/CampaignProvider";
+import { campaignService } from "@/services/campaign.service";
 
 export function TrendingKeywords() {
   const { isDark } = useTheme();
+  const { selectedCampaignId } = useCampaign();
   const [hoveredKeyword, setHoveredKeyword] = useState<string | null>(null);
+  const [keywords, setKeywords] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedCampaignId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchKeywordStats = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch both campaign keywords and search volume data
+        const [campaign, searchVolumeData] = await Promise.all([
+          campaignService.getCampaign(parseInt(selectedCampaignId)),
+          campaignService.getSearchVolumeData(parseInt(selectedCampaignId)).catch(() => []),
+        ]);
+
+        if (campaign && campaign.keywords && campaign.keywords.length > 0) {
+          // Build a map of keyword -> search volume data for real weights
+          const svMap: Record<string, any> = {};
+          if (searchVolumeData && searchVolumeData.length > 0) {
+            const maxVolume = Math.max(...searchVolumeData.map((sv: any) => sv.monthly_volume || 0), 1);
+            searchVolumeData.forEach((sv: any) => {
+              svMap[sv.keyword?.toLowerCase()] = {
+                weight: Math.round(((sv.monthly_volume || 0) / maxVolume) * 80) + 20,
+                trend: sv.trend_direction === "rising" ? "up"
+                  : sv.trend_direction === "falling" ? "down"
+                  : "stable",
+              };
+            });
+          }
+
+          const keywordsList = campaign.keywords.map((kw: any) => {
+            const sv = svMap[kw.keyword?.toLowerCase()];
+            return {
+              text: kw.keyword,
+              weight: sv ? sv.weight : 50,
+              trend: sv ? sv.trend : "stable",
+            };
+          });
+          setKeywords(keywordsList);
+        } else {
+          setError("No keywords found");
+          setKeywords([]);
+        }
+      } catch (err: any) {
+        console.error("Failed to fetch keywords:", err);
+        setError("Failed to load keywords");
+        setKeywords([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchKeywordStats();
+  }, [selectedCampaignId]);
 
   const getKeywordSize = (weight: number) => {
     const minSize = 12;
@@ -43,12 +88,36 @@ export function TrendingKeywords() {
     }
   };
 
+  if (loading) {
+    return (
+      <Card className="p-6 h-96 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+          <p className="text-muted-foreground">Loading keywords...</p>
+        </div>
+      </Card>
+    );
+  }
+
+  if (error || keywords.length === 0) {
+    return (
+      <Card className="p-6 h-96 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">{error || "No keywords available"}</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            Keywords will appear after campaign scraping completes
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
   return (
     <Card className="p-6 h-96">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5,  }}
+        transition={{ duration: 0.5 }}
         className="h-full"
       >
         <div className="mb-6">

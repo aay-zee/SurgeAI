@@ -276,6 +276,131 @@ class HackerNewsData(BaseModel):
         from_attributes = True
 
 
+class ProductHuntData(BaseModel):
+    ph_data_id: int
+    campaign_id: int
+    keyword_id: int | None = None
+    source_product_id: str
+    product_url: str
+    product_name: str
+    tagline: str | None = None
+    description: str
+    category: str | None = None
+    upvotes: int = 0
+    comments_count: int = 0
+    maker_name: str | None = None
+    engagement_score: int = 0
+    scraped_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class QuoraData(BaseModel):
+    quora_data_id: int
+    campaign_id: int
+    keyword_id: int | None = None
+    source_post_id: str
+    question_url: str
+    question_title: str
+    description: str | None = None
+    top_answer: str | None = None
+    author: str | None = None
+    upvotes: int = 0
+    answer_count: int = 0
+    engagement_score: int = 0
+    scraped_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class GooglePlayData(BaseModel):
+    gp_data_id: int
+    campaign_id: int
+    keyword_id: int | None = None
+    app_id: str
+    app_name: str
+    app_url: str | None = None
+    developer: str | None = None
+    app_rating: float | None = None
+    review_id: str
+    review_content: str | None = None
+    review_rating: int | None = None
+    reviewer_name: str | None = None
+    thumbs_up: int = 0
+    engagement_score: int = 0
+    scraped_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class StackExchangeData(BaseModel):
+    se_data_id: int
+    campaign_id: int
+    keyword_id: int | None = None
+    source_question_id: str
+    site: str
+    question_url: str
+    question_title: str
+    question_body: str | None = None
+    accepted_answer: str | None = None
+    tags: str | None = None
+    votes: int = 0
+    answer_count: int = 0
+    view_count: int = 0
+    is_answered: bool = False
+    engagement_score: int = 0
+    scraped_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class SearchVolumeData(BaseModel):
+    volume_id: int
+    campaign_id: int
+    keyword_id: int
+    keyword: str
+    monthly_volume: int = 0
+    competition: str | None = None
+    competition_index: int | None = None
+    cpc: float | None = None
+    trend_direction: str | None = None
+    captured_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ValidationScore(BaseModel):
+    score_id: int
+    campaign_id: int
+    market_size: int
+    demand: int
+    problem_clarity: int
+    competitor_gap: int
+    technical_feasibility: int
+    market_growth: int
+    pain_point_severity: int
+    monetization_potential: int
+    market_size_reason: str | None = None
+    demand_reason: str | None = None
+    problem_clarity_reason: str | None = None
+    competitor_gap_reason: str | None = None
+    technical_feasibility_reason: str | None = None
+    market_growth_reason: str | None = None
+    pain_point_severity_reason: str | None = None
+    monetization_potential_reason: str | None = None
+    overall_score: float | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class GoogleTrendsPoint(BaseModel):
     trend_id: int
     campaign_id: int
