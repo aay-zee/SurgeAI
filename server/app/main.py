@@ -24,6 +24,7 @@ celery_app.set_default()
 from celery import chain
 from tasks.reddit_scraper import scrape_reddit_for_campaign
 from tasks.nlp_analysis import run_sentiment_for_campaign
+from tasks.validation_engine import compute_validation_score
 
 #All the db tables are beung created here
 models.Base.metadata.create_all(bind=engine)
@@ -312,7 +313,8 @@ def create_campaign_and_scrape(
             try:
                 chain(
                     scrape_reddit_for_campaign.s(db_campaign.campaign_id),
-                    run_sentiment_for_campaign.si(db_campaign.campaign_id)
+                    run_sentiment_for_campaign.si(db_campaign.campaign_id),
+                    compute_validation_score.si(db_campaign.campaign_id),
                 ).apply_async()
             except Exception as e:
                 print(f"Warning: Could not queue scraping/NLP chain: {e}")
@@ -661,7 +663,7 @@ def list_posts_with_analysis(
 
 @app.get("/campaigns/{campaign_id}/sentiment-summary")
 def sentiment_summary(
-    campaign_id: int, 
+    campaign_id: int,
     current_user: models.User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
@@ -673,3 +675,56 @@ def sentiment_summary(
             detail="Campaign not found"
         )
     return crud.get_campaign_sentiment_summary(db, campaign_id)
+
+
+@app.get("/campaigns/{campaign_id}/validation-result", response_model=schemas.ValidationResultRead)
+def get_validation_result(
+    campaign_id: int,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Return the latest idea validation score and summary for a campaign."""
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+    result = crud.get_latest_validation_result(db, campaign_id)
+    if not result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Validation result not yet available. Campaign may still be processing."
+        )
+    return result
+
+
+@app.post("/campaigns/{campaign_id}/analyze", status_code=status.HTTP_202_ACCEPTED)
+def trigger_analysis(
+    campaign_id: int,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Re-trigger the NLP analysis + validation pipeline for an existing campaign.
+    Useful after adding new keywords or when re-running with a fresh model.
+    Skips scraping — only processes any unanalysed posts already in the DB,
+    then recomputes the validation score.
+    """
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Campaign not found"
+        )
+    try:
+        chain(
+            run_sentiment_for_campaign.si(campaign_id),
+            compute_validation_score.si(campaign_id),
+        ).apply_async()
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not queue analysis pipeline: {e}"
+        )
+    return {"message": "Analysis pipeline triggered", "campaign_id": campaign_id}

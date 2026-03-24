@@ -1,34 +1,70 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { SentimentDistribution } from "./widgets/SentimentDistribution";
 import { EngagementHeatmap } from "./widgets/EngagementHeatmap";
 import { TrendingKeywords } from "./widgets/TrendingKeywords";
 import { AIMarketingSuggestion } from "./widgets/AIMarketingSuggestion";
 import { useCampaign } from "@/components/providers/CampaignProvider";
+import { campaignService } from "@/services/campaign.service";
+import { SentimentSummary, ValidationResult } from "@/types/campaign";
 
 export function DashboardContent() {
-  // TODO: Use selectedCampaignId to filter dashboard data
-  const { selectedCampaignId } = useCampaign();
+  const { selectedCampaignId, selectedCampaign } = useCampaign();
+  const campaignId = selectedCampaignId ? Number(selectedCampaignId) : null;
+
+  const [summary, setSummary] = useState<SentimentSummary | null>(null);
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
+
+  useEffect(() => {
+    if (!campaignId) {
+      setSummary(null);
+      setValidation(null);
+      return;
+    }
+    campaignService
+      .getCampaignSentimentSummary(campaignId)
+      .then(setSummary)
+      .catch(() => setSummary(null));
+
+    campaignService
+      .getValidationResult(campaignId)
+      .then(setValidation)
+      .catch(() => setValidation(null));
+  }, [campaignId]);
+
+  const stats = [
+    {
+      label: "Posts Analyzed",
+      value: summary ? summary.total.toString() : "—",
+      sub: selectedCampaign?.campaign_name ?? "No campaign selected",
+      color: "emerald",
+    },
+    {
+      label: "Positive Sentiment",
+      value: summary ? `${summary.percentages.positive.toFixed(1)}%` : "—",
+      sub: summary ? `${summary.counts.positive} of ${summary.total} posts` : "",
+      color: "cyan",
+    },
+    {
+      label: "Demand Score",
+      value: validation?.demand_score != null ? `${validation.demand_score.toFixed(0)}/100` : "—",
+      sub: validation
+        ? validation.demand_score! >= 70 ? "Strong demand signal"
+          : validation.demand_score! >= 40 ? "Moderate demand signal"
+          : "Weak demand signal"
+        : "Not yet computed",
+      color: "indigo",
+    },
+  ];
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.1,
-      },
-    },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } },
   };
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
-    show: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-      },
-    },
+    show: { opacity: 1, y: 0, transition: { duration: 0.5 } },
   };
 
   return (
@@ -49,52 +85,29 @@ export function DashboardContent() {
 
         {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Sentiment Distribution */}
           <motion.div variants={itemVariants}>
-            <SentimentDistribution />
+            <SentimentDistribution campaignId={campaignId} />
           </motion.div>
 
-          {/* Engagement Heatmap */}
           <motion.div variants={itemVariants}>
             <EngagementHeatmap />
           </motion.div>
 
-          {/* Trending Keywords */}
           <motion.div variants={itemVariants}>
-            <TrendingKeywords />
+            <TrendingKeywords campaignId={campaignId} />
           </motion.div>
 
-          {/* AI Marketing Suggestion */}
           <motion.div variants={itemVariants}>
-            <AIMarketingSuggestion />
+            <AIMarketingSuggestion campaignId={campaignId} />
           </motion.div>
         </div>
 
-        {/* Additional Stats Row */}
+        {/* Stats Row — real data */}
         <motion.div
           variants={containerVariants}
           className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6"
         >
-          {[
-            {
-              label: "Total Engagement",
-              value: "2.4M",
-              change: "+12%",
-              color: "emerald",
-            },
-            {
-              label: "Campaign ROI",
-              value: "340%",
-              change: "+8%",
-              color: "cyan",
-            },
-            {
-              label: "AI Accuracy",
-              value: "96.7%",
-              change: "+2%",
-              color: "indigo",
-            },
-          ].map((stat, index) => (
+          {stats.map((stat) => (
             <motion.div
               key={stat.label}
               variants={itemVariants}
@@ -102,11 +115,9 @@ export function DashboardContent() {
             >
               <div className="flex items-center justify-between mb-2">
                 <p className="text-muted-foreground text-sm">{stat.label}</p>
-                <span className={`text-${stat.color}-500 text-sm font-medium`}>
-                  {stat.change}
-                </span>
               </div>
               <p className="text-2xl font-bold">{stat.value}</p>
+              <p className="text-xs text-muted-foreground mt-1 truncate">{stat.sub}</p>
             </motion.div>
           ))}
         </motion.div>

@@ -6,13 +6,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
-  Search,
+  LayoutGrid,
   TrendingUp,
   MessageSquare,
   Settings,
   ChevronLeft,
   ChevronRight,
-  PlusCircle,
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 
@@ -22,20 +21,11 @@ interface SidebarProps {
 }
 
 const navigationItems = [
-  { icon: BarChart3, label: "Dashboard", href: "/client" },
-  {
-    icon: PlusCircle,
-    label: "Create a Campaign",
-    href: "/client/campaigns",
-  },
-  { icon: Search, label: "Keywords", href: "/client/keywords" },
-  { icon: TrendingUp, label: "Analytics", href: "/client/analytics" },
-  {
-    icon: MessageSquare,
-    label: "Comments",
-    href: "/client/comments",
-  },
-  { icon: Settings, label: "Settings", href: "/client/settings" },
+  { icon: BarChart3,    label: "Dashboard",  href: "/client" },
+  { icon: LayoutGrid,  label: "Campaigns",   href: "/client/campaigns" },
+  { icon: TrendingUp,  label: "Insights",    href: "/client/analytics" },
+  { icon: MessageSquare, label: "Comments",  href: "/client/comments" },
+  { icon: Settings,    label: "Settings",    href: "/client/settings" },
 ];
 
 export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {

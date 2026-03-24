@@ -6,15 +6,23 @@ import { useTheme } from "@/components/theme-provider";
 const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const hours = Array.from({ length: 24 }, (_, i) => i);
 
-// Generate engagement data (0-100)
+// Stable illustrative heatmap — peaks during typical Reddit active hours
+// (mornings, lunch, evenings on weekdays; midday on weekends)
 const generateHeatmapData = () => {
+  const peakHours = [8, 9, 12, 13, 18, 19, 20, 21];
+  const weekendPeaks = [10, 11, 12, 13, 14, 15];
   return days
     .map((day) =>
-      hours.map((hour) => ({
-        day,
-        hour,
-        value: Math.floor(Math.random() * 100),
-      }))
+      hours.map((hour) => {
+        const isWeekend = day === "Sat" || day === "Sun";
+        const isPeak = isWeekend
+          ? weekendPeaks.includes(hour)
+          : peakHours.includes(hour);
+        const base = isPeak ? 55 : 15;
+        // Use deterministic variance based on day+hour index
+        const variance = ((days.indexOf(day) * 24 + hour) * 17) % 35;
+        return { day, hour, value: Math.min(100, base + variance) };
+      })
     )
     .flat();
 };
@@ -49,9 +57,9 @@ export function EngagementHeatmap() {
         transition={{ duration: 0.5,  }}
       >
         <div className="mb-6">
-          <h3 className="text-lg font-semibold">Engagement Heatmap</h3>
+          <h3 className="text-lg font-semibold">Reddit Activity Pattern</h3>
           <p className="text-sm text-muted-foreground">
-            User activity patterns by day and hour
+            Typical posting activity by day and hour (illustrative)
           </p>
         </div>
 

@@ -35,7 +35,21 @@ export interface NLPAnalysis {
   data_id: number;
   sentiment_score: number;
   sentiment_label: string;
+  intent: string | null;
+  topics: { top_words: string[] } | null;
   analyzed_at: string;
+}
+
+export interface ValidationResult {
+  validation_id: number;
+  campaign_id: number;
+  demand_score: number | null;
+  sentiment_aggregate: number | null;
+  positive_mentions: number;
+  negative_mentions: number;
+  neutral_mentions: number;
+  summary: string | null;
+  generated_at: string;
 }
 
 export interface ScrapedData {

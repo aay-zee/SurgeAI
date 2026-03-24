@@ -215,3 +215,19 @@ class NLPAnalysisRead(NLPAnalysisBase):
 
 class ScrapedDataWithAnalysis(ScrapedData):
     analysis: NLPAnalysisRead | None = None
+
+
+# Validation Result schema
+class ValidationResultRead(BaseModel):
+    validation_id: int
+    campaign_id: int
+    demand_score: float | None
+    sentiment_aggregate: float | None
+    positive_mentions: int
+    negative_mentions: int
+    neutral_mentions: int
+    summary: str | None
+    generated_at: datetime
+
+    class Config:
+        from_attributes = True

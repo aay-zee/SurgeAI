@@ -31,6 +31,7 @@ export function ScrapedDataTable({ posts }: ScrapedDataTableProps) {
             <TableRow>
               <TableHead className="w-[100px]">Sentiment</TableHead>
               <TableHead className="w-[80px]">Score</TableHead>
+              <TableHead className="w-[150px]">Intent</TableHead>
               <TableHead>Content</TableHead>
               <TableHead className="w-[120px]">Platform</TableHead>
               <TableHead className="w-[150px]">Date</TableHead>
@@ -40,7 +41,7 @@ export function ScrapedDataTable({ posts }: ScrapedDataTableProps) {
           <TableBody>
             {posts.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   No posts found.
                 </TableCell>
               </TableRow>
@@ -74,6 +75,15 @@ export function ScrapedDataTable({ posts }: ScrapedDataTableProps) {
                         {post.analysis.sentiment_score.toFixed(2)}
                       </span>
                     ) : "-"}
+                  </TableCell>
+                  <TableCell>
+                    {post.analysis?.intent ? (
+                      <Badge variant="outline" className="text-xs capitalize whitespace-nowrap">
+                        {post.analysis.intent}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-xs">—</span>
+                    )}
                   </TableCell>
                   <TableCell className="max-w-[400px]">
                     <div className="truncate font-medium">{post.content}</div>

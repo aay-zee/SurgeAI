@@ -1,5 +1,5 @@
 import api from '@/lib/axios';
-import { Campaign, CampaignCreate } from '@/types/campaign';
+import { Campaign, CampaignCreate, ValidationResult } from '@/types/campaign';
 
 export const campaignService = {
   // Get all campaigns for the current user
@@ -41,5 +41,17 @@ export const campaignService = {
   async getCampaignSentimentSummary(id: number): Promise<import('@/types/campaign').SentimentSummary> {
     const response = await api.get<import('@/types/campaign').SentimentSummary>(`/campaigns/${id}/sentiment-summary`);
     return response.data;
-  }
+  },
+
+  // Get the latest validation result for a campaign
+  async getValidationResult(id: number): Promise<ValidationResult> {
+    const response = await api.get<ValidationResult>(`/campaigns/${id}/validation-result`);
+    return response.data;
+  },
+
+  // Re-trigger NLP + validation pipeline (skips re-scraping)
+  async triggerAnalysis(id: number): Promise<{ message: string; campaign_id: number }> {
+    const response = await api.post(`/campaigns/${id}/analyze`);
+    return response.data;
+  },
 };

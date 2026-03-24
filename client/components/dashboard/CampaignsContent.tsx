@@ -179,8 +179,7 @@ export function CampaignsContent() {
                     <Sparkles className="absolute left-3 top-3.5 w-4 h-4 text-muted-foreground" />
                   </div>
                   <p className="text-xs text-muted-foreground ml-1">
-                    Separate keywords with commas. We'll track these on Reddit,
-                    X, and Quora.
+                    Separate keywords with commas. We'll search these across Reddit.
                   </p>
                 </div>
 
@@ -225,8 +224,7 @@ export function CampaignsContent() {
                 <div>
                   <h4 className="font-medium text-sm">Scraping</h4>
                   <p className="text-xs text-muted-foreground mt-1">
-                    We'll fetch relevant conversations from Reddit, X, and
-                    Quora.
+                    We fetch relevant posts and comments from Reddit matching your keywords.
                   </p>
                 </div>
               </div>
@@ -261,9 +259,9 @@ export function CampaignsContent() {
                   <span className="font-bold text-sm">4</span>
                 </div>
                 <div>
-                  <h4 className="font-medium text-sm">Engagement</h4>
+                  <h4 className="font-medium text-sm">Insights</h4>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Review and post AI-drafted replies to potential customers.
+                    Review AI-generated comment suggestions for high-intent posts.
                   </p>
                 </div>
               </div>

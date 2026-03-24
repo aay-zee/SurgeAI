@@ -376,6 +376,16 @@ def get_unanalysed_scraped_data_for_campaign(db: Session, campaign_id: int, limi
     return q.all()
 
 
+def get_latest_validation_result(db: Session, campaign_id: int):
+    """Return the most recently generated ValidationResult for a campaign."""
+    return (
+        db.query(models.ValidationResult)
+        .filter(models.ValidationResult.campaign_id == campaign_id)
+        .order_by(models.ValidationResult.generated_at.desc())
+        .first()
+    )
+
+
 def get_campaign_sentiment_summary(db: Session, campaign_id: int):
     """Aggregate counts and percentages of sentiment per campaign."""
     total_q = (
