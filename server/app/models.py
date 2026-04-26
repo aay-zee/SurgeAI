@@ -15,8 +15,8 @@ class CampaignStatus(str, enum.Enum):
 
 class Platform(str, enum.Enum):
     REDDIT = "reddit"
-    TWITTER = "twitter"
-    QUORA = "quora"
+    HACKER_NEWS = "hacker_news"
+    GOOGLE_PLAY = "google_play"
 
 class UserRole(str, enum.Enum):
     ADMIN = "admin"
@@ -63,9 +63,15 @@ class Campaign(Base):
     # Relationships
     user = relationship("User", back_populates="campaigns")
     keywords = relationship("Keyword", back_populates="campaign", cascade="all, delete-orphan")
-    scraped_data = relationship("ScrapedData", back_populates="campaign")
-    generated_comments = relationship("GeneratedComment", back_populates="campaign")
-    validation_results = relationship("ValidationResult", back_populates="campaign")
+    scraped_data = relationship("ScrapedData", back_populates="campaign", cascade="all, delete-orphan")
+    generated_comments = relationship("GeneratedComment", back_populates="campaign", cascade="all, delete-orphan")
+    validation_results = relationship("ValidationResult", back_populates="campaign", cascade="all, delete-orphan")
+    validation_scores = relationship("ValidationScore", back_populates="campaign", cascade="all, delete-orphan")
+    hackernews_data = relationship("HackerNewsData", back_populates="campaign", cascade="all, delete-orphan")
+    google_play_data = relationship("GooglePlayData", back_populates="campaign", cascade="all, delete-orphan")
+    google_trends_points = relationship("GoogleTrendsPoint", back_populates="campaign", cascade="all, delete-orphan")
+    search_volume_data = relationship("SearchVolumeData", back_populates="campaign", cascade="all, delete-orphan")
+    llm_analyses = relationship("LLMAnalysis", back_populates="campaign", cascade="all, delete-orphan")
 
 class Keyword(Base):
     __tablename__ = "keywords"
@@ -108,12 +114,15 @@ class ScrapedData(Base):
     author = Column(String)
     engagement_score = Column(Integer, default=0)
     scraped_at = Column(DateTime(timezone=True), server_default=func.now())
-    
+    is_relevant = Column(Boolean, default=True, nullable=False)
+    relevance_score = Column(Float, nullable=True)
+    embedding = Column(JSON, nullable=True)
+
     # Relationships
     campaign = relationship("Campaign", back_populates="scraped_data")
     keyword = relationship("Keyword", back_populates="scraped_data")
-    analysis = relationship("NLPAnalysis", uselist=False, back_populates="scraped_data")
-    generated_comments = relationship("GeneratedComment", back_populates="scraped_data")
+    analysis = relationship("NLPAnalysis", uselist=False, back_populates="scraped_data", cascade="all, delete-orphan")
+    generated_comments = relationship("GeneratedComment", back_populates="scraped_data", cascade="all, delete-orphan")
 
 class NLPAnalysis(Base):
     __tablename__ = "nlp_analysis"
@@ -158,3 +167,108 @@ class GeneratedComment(Base):
     posted_at = Column(DateTime(timezone=True), nullable=True)
     campaign = relationship("Campaign", back_populates="generated_comments")
     scraped_data = relationship("ScrapedData", back_populates="generated_comments")
+
+
+# ─────────────────── NEW TABLES (from intelligence layer) ───────────────────
+
+class HackerNewsData(Base):
+    __tablename__ = "hackernews_data"
+    hn_data_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
+    keyword_id = Column(Integer, ForeignKey("keywords.keyword_id"), nullable=True, index=True)
+    source_post_id = Column(String, nullable=False)
+    post_url = Column(String, nullable=True)
+    title = Column(Text, nullable=True)
+    content = Column(Text, nullable=True)
+    author = Column(String, nullable=True)
+    points = Column(Integer, default=0)
+    comments_count = Column(Integer, default=0)
+    engagement_score = Column(Integer, default=0)
+    scraped_at = Column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (UniqueConstraint('campaign_id', 'source_post_id', name='uq_hn_campaign_post'),)
+    campaign = relationship("Campaign", back_populates="hackernews_data")
+
+
+class GooglePlayData(Base):
+    __tablename__ = "google_play_data"
+    gp_data_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
+    keyword_id = Column(Integer, ForeignKey("keywords.keyword_id"), nullable=True, index=True)
+    app_id = Column(String, nullable=False)
+    app_name = Column(String, nullable=True)
+    app_url = Column(String, nullable=True)
+    developer = Column(String, nullable=True)
+    app_rating = Column(Float, nullable=True)
+    review_id = Column(String, nullable=False)
+    review_content = Column(Text, nullable=True)
+    review_rating = Column(Integer, nullable=True)
+    reviewer_name = Column(String, nullable=True)
+    thumbs_up = Column(Integer, default=0)
+    engagement_score = Column(Integer, default=0)
+    scraped_at = Column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (UniqueConstraint('campaign_id', 'review_id', name='uq_gp_campaign_review'),)
+    campaign = relationship("Campaign", back_populates="google_play_data")
+
+
+class SearchVolumeData(Base):
+    __tablename__ = "search_volume_data"
+    sv_data_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
+    keyword_id = Column(Integer, ForeignKey("keywords.keyword_id"), nullable=True, index=True)
+    keyword_text = Column(String, nullable=False)
+    monthly_volume = Column(Integer, default=0)
+    cpc = Column(Float, nullable=True)
+    competition = Column(Float, nullable=True)
+    trend_direction = Column(String, nullable=True)
+    fetched_at = Column(DateTime(timezone=True), server_default=func.now())
+    campaign = relationship("Campaign", back_populates="search_volume_data")
+
+
+class ValidationScore(Base):
+    __tablename__ = "validation_scores"
+    score_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
+    market_size = Column(Float, nullable=True)
+    demand = Column(Float, nullable=True)
+    problem_clarity = Column(Float, nullable=True)
+    competitor_gap = Column(Float, nullable=True)
+    technical_feasibility = Column(Float, nullable=True)
+    market_growth = Column(Float, nullable=True)
+    pain_point_severity = Column(Float, nullable=True)
+    monetization_potential = Column(Float, nullable=True)
+    overall_score = Column(Float, nullable=True)
+    market_size_reason = Column(Text, nullable=True)
+    demand_reason = Column(Text, nullable=True)
+    problem_clarity_reason = Column(Text, nullable=True)
+    competitor_gap_reason = Column(Text, nullable=True)
+    technical_feasibility_reason = Column(Text, nullable=True)
+    market_growth_reason = Column(Text, nullable=True)
+    pain_point_severity_reason = Column(Text, nullable=True)
+    monetization_potential_reason = Column(Text, nullable=True)
+    calculated_at = Column(DateTime(timezone=True), server_default=func.now())
+    campaign = relationship("Campaign", back_populates="validation_scores")
+
+
+class GoogleTrendsPoint(Base):
+    __tablename__ = "google_trends_points"
+    trend_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
+    keyword_id = Column(Integer, ForeignKey("keywords.keyword_id"), nullable=True, index=True)
+    region = Column(String, default="GLOBAL")
+    trend_date = Column(DateTime(timezone=True), nullable=False)
+    interest = Column(Integer, nullable=False)
+    is_partial = Column(Boolean, default=False)
+    __table_args__ = (UniqueConstraint('campaign_id', 'keyword_id', 'region', 'trend_date', name='uq_trend_point'),)
+    campaign = relationship("Campaign", back_populates="google_trends_points")
+
+
+class LLMAnalysis(Base):
+    __tablename__ = "llm_analyses"
+    llm_id = Column(Integer, primary_key=True, index=True)
+    campaign_id = Column(Integer, ForeignKey("campaigns.campaign_id"), nullable=False, index=True)
+    themes = Column(JSON, nullable=True)
+    competitor_analysis = Column(JSON, nullable=True)
+    report_text = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    campaign = relationship("Campaign", back_populates="llm_analyses")

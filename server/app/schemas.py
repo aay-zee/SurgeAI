@@ -117,7 +117,7 @@ class CampaignCreate(BaseModel):
     campaign_name: str
     description: str | None = None
     keywords: list[str]  # ["AI chatbot", "customer service", "SaaS"]
-    platforms: list[Platform] = [Platform.REDDIT, Platform.TWITTER, Platform.QUORA]  # Default: all platforms
+    platforms: list[Platform] = [Platform.REDDIT, Platform.HACKER_NEWS]  # Default: all platforms
 
 class Campaign(BaseModel):
     campaign_id: int

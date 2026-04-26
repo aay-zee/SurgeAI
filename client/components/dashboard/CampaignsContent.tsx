@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import {
   Card,
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
   Rocket,
@@ -21,20 +22,50 @@ import {
   Sparkles,
   Layers,
   Search as SearchIcon,
-  MessageSquare,
   Globe,
+  BarChart2,
+  Clock,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useRouter } from "next/navigation";
 import { campaignService } from "@/services/campaign.service";
-import { Campaign } from "@/types/campaign";
+import { Campaign, CampaignStatus } from "@/types/campaign";
+
+const STATUS_COLORS: Record<string, string> = {
+  completed: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+  scraping:  "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  pending:   "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+  failed:    "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+  active:    "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  paused:    "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+};
 
 export function CampaignsContent() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [keywords, setKeywords] = useState("");
   const [loading, setLoading] = useState(false);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const router = useRouter(); // Import needed
+  const router = useRouter();
+
+  useEffect(() => {
+    campaignService.getCampaigns()
+      .then(setCampaigns)
+      .catch(() => {});
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -49,7 +80,7 @@ export function CampaignsContent() {
       const newCampaign = await campaignService.createCampaign({
         campaign_name: title,
         description: description,
-        platforms: ["reddit" as any], // Defaulting to Reddit for now as per plan
+        platforms: ["reddit", "hacker_news"] as any[],
         keywords: keywordList
       });
 
@@ -57,7 +88,8 @@ export function CampaignsContent() {
       setTitle("");
       setDescription("");
       setKeywords("");
-      
+      setCampaigns(prev => [newCampaign, ...prev]);
+
       // Redirect to results page
       router.push(`/client/campaigns/${newCampaign.campaign_id}/results`);
       
@@ -71,6 +103,19 @@ export function CampaignsContent() {
       }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleDelete(campaignId: number) {
+    setDeletingId(campaignId);
+    try {
+      await campaignService.deleteCampaign(campaignId);
+      setCampaigns(prev => prev.filter(c => c.campaign_id !== campaignId));
+      toast.success("Campaign deleted.");
+    } catch {
+      toast.error("Failed to delete campaign.");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -288,6 +333,79 @@ export function CampaignsContent() {
           </Card>
         </motion.div>
       </motion.div>
+
+      {/* ── Existing Campaigns ── */}
+      {campaigns.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
+          <h2 className="text-xl font-bold mb-4">Your Campaigns</h2>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {campaigns.map((c) => (
+              <Card key={c.campaign_id} className="flex flex-col">
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="text-base leading-snug">{c.campaign_name}</CardTitle>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium capitalize shrink-0 ${STATUS_COLORS[c.status] ?? ""}`}>
+                      {c.status}
+                    </span>
+                  </div>
+                  {c.description && (
+                    <CardDescription className="line-clamp-2">{c.description}</CardDescription>
+                  )}
+                </CardHeader>
+                <CardContent className="pt-0 mt-auto">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-3">
+                    <Clock className="h-3 w-3" />
+                    {new Date(c.created_at).toLocaleDateString()}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => router.push(`/client/campaigns/${c.campaign_id}/results`)}
+                    >
+                      <BarChart2 className="mr-2 h-4 w-4" />
+                      View Results
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 border-red-200 dark:border-red-900"
+                          disabled={deletingId === c.campaign_id}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Campaign?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete <strong>{c.campaign_name}</strong> and all its scraped posts, NLP analysis, validation results, and intelligence data. This cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                            onClick={() => handleDelete(c.campaign_id)}
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

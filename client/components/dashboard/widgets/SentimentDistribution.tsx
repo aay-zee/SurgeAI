@@ -63,7 +63,7 @@ export function SentimentDistribution({ campaignId }: SentimentDistributionProps
   };
 
   return (
-    <Card className="p-6 h-96">
+    <Card className="p-6">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}

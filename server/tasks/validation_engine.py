@@ -1,5 +1,5 @@
 from app.database import SessionLocal
-from app import models
+from app import models, crud
 from tasks.celery_worker import celery_app
 
 
@@ -35,7 +35,8 @@ def compute_validation_score(campaign_id: int):
         )
 
         if not rows:
-            print(f"[ValidationEngine] No NLP data for campaign {campaign_id}. Skipping.")
+            print(f"[ValidationEngine] No NLP data for campaign {campaign_id}. Marking completed with no data.")
+            crud.update_campaign_status(db, campaign_id, models.CampaignStatus.COMPLETED)
             return f"No NLP data found for campaign {campaign_id}"
 
         total = len(rows)
@@ -47,9 +48,20 @@ def compute_validation_score(campaign_id: int):
         sentiment_aggregate = sum(r.sentiment_score or 0.0 for r in rows) / total
 
         # Demand score
-        positive_pct = (pos / total) * 100
+        # A post is a demand signal if it shows positive sentiment OR an active
+        # need intent (pain point, buying intent, feature request).
+        # Pain points ARE demand — someone complaining "I can't find a tool for X"
+        # wants exactly that tool. Using sentiment alone penalises the most valuable
+        # posts and produces artificially low scores.
+        DEMAND_INTENTS = {"buying intent", "pain point", "feature request"}
+        demand_signals = sum(
+            1 for r in rows
+            if _label_value(r.sentiment_label) == "positive"
+            or (r.intent and r.intent.lower() in DEMAND_INTENTS)
+        )
+        demand_pct = (demand_signals / total) * 100
         volume_score = (min(total, 50) / 50) * 100
-        demand_score = round((positive_pct * 0.6) + (volume_score * 0.4), 1)
+        demand_score = round((demand_pct * 0.6) + (volume_score * 0.4), 1)
 
         # Intent breakdown (only from rows that have intent populated)
         intent_rows = [r for r in rows if r.intent]
@@ -75,7 +87,7 @@ def compute_validation_score(campaign_id: int):
             advice = "Limited interest found. Consider refining or pivoting the idea."
 
         summary = (
-            f"{total} Reddit posts analyzed. "
+            f"{total} posts analyzed. "
             f"{pos} positive, {neg} negative, {neu} neutral. "
             f"{verdict} — {advice}"
         )
@@ -95,11 +107,13 @@ def compute_validation_score(campaign_id: int):
         db.add(result)
         db.commit()
 
+        crud.update_campaign_status(db, campaign_id, models.CampaignStatus.COMPLETED)
         print(f"[ValidationEngine] Campaign {campaign_id}: demand_score={demand_score}")
         return f"Validation complete for campaign {campaign_id}: demand_score={demand_score}"
 
     except Exception as e:
         print(f"[ValidationEngine] Error for campaign {campaign_id}: {e}")
+        crud.update_campaign_status(db, campaign_id, models.CampaignStatus.FAILED)
         raise
     finally:
         db.close()

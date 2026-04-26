@@ -325,14 +325,14 @@ export function CommentsContent() {
                     <div className="flex items-start space-x-4">
                         <Avatar className="w-10 h-10 bg-gradient-to-r from-cyan-500 to-indigo-500">
                         <span className="text-white text-sm font-medium">
-                            {(comment.author || "A")[0].toUpperCase()}
+                            {((comment as any).author || "A")[0].toUpperCase()}
                         </span>
                         </Avatar>
 
                         <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center space-x-3">
-                            <h4 className="font-medium">{comment.author || "Anonymous"}</h4>
+                            <h4 className="font-medium">{(comment as any).author || "Anonymous"}</h4>
                             <Badge
                                 variant="outline"
                                 className={getPlatformColor(comment.platform)}
@@ -361,14 +361,14 @@ export function CommentsContent() {
                             <div className="flex items-center space-x-4">
                             <div className="flex items-center space-x-1">
                                 <Heart size={16} className="text-red-500" />
-                                <span className="text-sm">{comment.engagement_score || 0}</span>
+                                <span className="text-sm">{(comment as any).engagement_score || 0}</span>
                             </div>
                             </div>
                             
                              <div className="flex space-x-2">
-                                {comment.post_url && (
+                                {(comment.url || (comment as any).post_url) && (
                                     <Button variant="outline" size="sm" asChild>
-                                        <a href={comment.post_url} target="_blank" rel="noopener noreferrer">
+                                        <a href={comment.url || (comment as any).post_url} target="_blank" rel="noopener noreferrer">
                                             View Original
                                         </a>
                                     </Button>

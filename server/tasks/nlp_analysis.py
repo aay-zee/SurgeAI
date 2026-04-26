@@ -124,7 +124,11 @@ def run_sentiment_for_campaign(campaign_id: int):
         sentiment_results = sentiment_pipe(texts, truncation=True, max_length=512)
 
         # Step 2 & 3 — Intent + Topics (per post)
-        intent_pipe = get_intent_pipeline()
+        try:
+            intent_pipe = get_intent_pipeline()
+        except Exception as e:
+            print(f"[NLP] Intent pipeline failed to load: {e}. Intent detection will be skipped.")
+            intent_pipe = None
 
         for row, sent_res in zip(rows, sentiment_results):
             text = row.content or ""
@@ -133,16 +137,17 @@ def run_sentiment_for_campaign(campaign_id: int):
             score = _map_score_to_range(label, sent_res.get("score", 0.0))
 
             # Intent — truncate to 1024 chars so large posts don't time out
-            try:
-                intent_res = intent_pipe(
-                    text[:1024],
-                    candidate_labels=INTENT_LABELS,
-                    multi_label=False,
-                )
-                detected_intent = intent_res["labels"][0]
-            except Exception as e:
-                print(f"Intent detection failed for data_id={row.data_id}: {e}")
-                detected_intent = None
+            detected_intent = None
+            if intent_pipe is not None:
+                try:
+                    intent_res = intent_pipe(
+                        text[:1024],
+                        candidate_labels=INTENT_LABELS,
+                        multi_label=False,
+                    )
+                    detected_intent = intent_res["labels"][0]
+                except Exception as e:
+                    print(f"Intent detection failed for data_id={row.data_id}: {e}")
 
             # Topics
             topics = _extract_topics(text)
@@ -161,6 +166,7 @@ def run_sentiment_for_campaign(campaign_id: int):
 
     except Exception as e:
         print(f"NLP task error for campaign {campaign_id}: {e}")
-        raise
+        # Don't re-raise — let compute_validation_score still run and set COMPLETED/FAILED
+        return f"NLP failed for campaign {campaign_id}: {e}"
     finally:
         db.close()

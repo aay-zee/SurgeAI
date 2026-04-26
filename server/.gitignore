@@ -31,3 +31,6 @@ test_all.sh
 MEMORY.md
 donesofar.md
 mid_eval_prep.md
+*.sh
+*.pdf
+*.txt

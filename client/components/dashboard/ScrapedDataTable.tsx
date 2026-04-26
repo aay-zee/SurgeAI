@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { ScrapedData } from "@/types/campaign";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -19,11 +21,55 @@ interface ScrapedDataTableProps {
   posts: ScrapedData[];
 }
 
+const PLATFORM_LABELS: Record<string, string> = {
+  reddit: "Reddit",
+  hacker_news: "Hacker News",
+  google_play: "Google Play",
+};
+
 export function ScrapedDataTable({ posts }: ScrapedDataTableProps) {
+  const [activePlatform, setActivePlatform] = useState<string>("all");
+
+  // Compute per-platform counts for filter buttons
+  const platformCounts = posts.reduce((acc, p) => {
+    const key = p.platform?.toLowerCase() ?? "";
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const availablePlatforms = Object.keys(platformCounts);
+
+  const filtered =
+    activePlatform === "all"
+      ? posts
+      : posts.filter((p) => p.platform?.toLowerCase() === activePlatform);
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Analyzed Posts</CardTitle>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <CardTitle>Analyzed Posts</CardTitle>
+          {/* Platform filter buttons */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant={activePlatform === "all" ? "default" : "outline"}
+              onClick={() => setActivePlatform("all")}
+            >
+              All ({posts.length})
+            </Button>
+            {availablePlatforms.map((platform) => (
+              <Button
+                key={platform}
+                size="sm"
+                variant={activePlatform === platform ? "default" : "outline"}
+                onClick={() => setActivePlatform(platform)}
+              >
+                {PLATFORM_LABELS[platform] ?? platform} ({platformCounts[platform]})
+              </Button>
+            ))}
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
@@ -39,14 +85,14 @@ export function ScrapedDataTable({ posts }: ScrapedDataTableProps) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {posts.length === 0 ? (
+            {filtered.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   No posts found.
                 </TableCell>
               </TableRow>
             ) : (
-              posts.map((post) => (
+              filtered.map((post) => (
                 <TableRow key={post.data_id}>
                   <TableCell>
                     {post.analysis ? (
@@ -93,8 +139,8 @@ export function ScrapedDataTable({ posts }: ScrapedDataTableProps) {
                     {post.scraped_at ? formatDistanceToNow(new Date(post.scraped_at), { addSuffix: true }) : "-"}
                   </TableCell>
                   <TableCell>
-                    {post.url && (
-                      <Link href={post.url} target="_blank" rel="noopener noreferrer">
+                    {post.post_url && (
+                      <Link href={post.post_url} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="h-4 w-4 text-blue-500 hover:text-blue-700" />
                       </Link>
                     )}

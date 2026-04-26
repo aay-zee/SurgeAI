@@ -21,8 +21,12 @@ from .services.email_service import send_password_reset_email, send_welcome_emai
 # Ensure the Celery app (configured with Redis) is loaded before importing tasks
 from tasks.celery_worker import celery_app
 celery_app.set_default()
-from celery import chain
+from celery import group, chain
 from tasks.reddit_scraper import scrape_reddit_for_campaign
+from tasks.hackernews_scraper import scrape_hackernews_for_campaign
+from tasks.google_play_scraper import scrape_google_play_for_campaign
+from tasks.google_trends_scraper import scrape_google_trends_for_campaign
+from tasks.relevance_filter_task import run_relevance_filter
 from tasks.nlp_analysis import run_sentiment_for_campaign
 from tasks.validation_engine import compute_validation_score
 
@@ -305,21 +309,32 @@ def create_campaign_and_scrape(
     # Save the campaign to the database associated with current user
     db_campaign = crud.create_campaign(db=db, campaign=campaign, user_id=current_user.user_id)
     
-    # Trigger scrapers for each selected platform
+    # Build scraper tasks — Reddit and HackerNews only.
+    # Google Play and Google Trends are fetched on-demand by the Intelligence Layer.
+    cid = db_campaign.campaign_id
+    scraper_tasks = []
     for platform in campaign.platforms:
         if platform == models.Platform.REDDIT:
-            # Chain the scraper and NLP analysis
-            # Use .si() (immutable signature) for the second task to ignore the result of the scraper
-            try:
-                chain(
-                    scrape_reddit_for_campaign.s(db_campaign.campaign_id),
-                    run_sentiment_for_campaign.si(db_campaign.campaign_id),
-                    compute_validation_score.si(db_campaign.campaign_id),
-                ).apply_async()
-            except Exception as e:
-                print(f"Warning: Could not queue scraping/NLP chain: {e}")
-                print("Note: Celery/Redis may not be running. Scraping will not occur.")
-        # TODO: Add Twitter and Quora scrapers when implemented
+            scraper_tasks.append(scrape_reddit_for_campaign.si(cid))
+        elif platform == models.Platform.HACKER_NEWS:
+            scraper_tasks.append(scrape_hackernews_for_campaign.si(cid))
+
+    if scraper_tasks:
+        try:
+            # Pipeline:
+            #   1. Reddit + HackerNews scrapers run in parallel
+            #   2. Relevance filter marks off-topic posts as is_relevant=False
+            #   3. NLP runs only on relevant posts
+            #   4. Validation score is computed from NLP results
+            (
+                group(*scraper_tasks) |
+                run_relevance_filter.si(cid) |
+                run_sentiment_for_campaign.si(cid) |
+                compute_validation_score.si(cid)
+            ).apply_async()
+        except Exception as e:
+            print(f"Warning: Could not queue scraping pipeline: {e}")
+            print("Note: Celery/Redis may not be running. Scraping will not occur.")
         # elif platform == models.Platform.TWITTER:
         #     try:
         #         scrape_twitter_for_campaign.delay(db_campaign.campaign_id)
@@ -728,3 +743,279 @@ def trigger_analysis(
             detail=f"Could not queue analysis pipeline: {e}"
         )
     return {"message": "Analysis pipeline triggered", "campaign_id": campaign_id}
+
+
+# ─────────────────── Intelligence Layer Endpoints ───────────────────
+
+@app.post("/campaigns/{campaign_id}/calculate-validation")
+def calculate_validation_scores(
+    campaign_id: int,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Rule-based 8-dimension validation scoring."""
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+
+    from .validation_scorer import ValidationScorer
+    scorer = ValidationScorer(campaign_id=campaign_id, db=db)
+    scores = scorer.calculate_all_scores()
+
+    # Persist to DB so GET /validation-score works
+    vs = models.ValidationScore(
+        campaign_id=campaign_id,
+        market_size=scores.get("market_size", {}).get("score"),
+        demand=scores.get("demand", {}).get("score"),
+        problem_clarity=scores.get("problem_clarity", {}).get("score"),
+        competitor_gap=scores.get("competitor_gap", {}).get("score"),
+        technical_feasibility=scores.get("technical_feasibility", {}).get("score"),
+        market_growth=scores.get("market_growth", {}).get("score"),
+        pain_point_severity=scores.get("pain_point_severity", {}).get("score"),
+        monetization_potential=scores.get("monetization_potential", {}).get("score"),
+        overall_score=scores.get("overall_score"),
+        market_size_reason=scores.get("market_size", {}).get("reason"),
+        demand_reason=scores.get("demand", {}).get("reason"),
+        problem_clarity_reason=scores.get("problem_clarity", {}).get("reason"),
+        competitor_gap_reason=scores.get("competitor_gap", {}).get("reason"),
+        technical_feasibility_reason=scores.get("technical_feasibility", {}).get("reason"),
+        market_growth_reason=scores.get("market_growth", {}).get("reason"),
+        pain_point_severity_reason=scores.get("pain_point_severity", {}).get("reason"),
+        monetization_potential_reason=scores.get("monetization_potential", {}).get("reason"),
+    )
+    crud.create_or_update_validation_score(db, vs)
+
+    return {"scores": scores, "overall_score": scores.get("overall_score", 0)}
+
+
+@app.get("/campaigns/{campaign_id}/validation-score")
+def get_validation_score(
+    campaign_id: int,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Return the stored 8-dimension ValidationScore for a campaign."""
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+
+    vs = crud.get_validation_score(db, campaign_id)
+    if not vs:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Validation scores not yet calculated.")
+    return vs
+
+
+@app.post("/campaigns/{campaign_id}/llm-validation")
+def llm_validation_scoring(
+    campaign_id: int,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """LLM-powered 8-dimension validation scoring with reasoning."""
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+
+    from .llm_analyzer import llm_validation_scoring as _llm_score
+    scores = _llm_score(campaign_id=campaign_id, db=db)
+    return {"scores": scores, "overall_score": scores.get("overall_score", 0)}
+
+
+@app.post("/campaigns/{campaign_id}/extract-themes")
+def extract_themes(
+    campaign_id: int,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Extract complaint themes from negative posts using LLM."""
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+
+    from .llm_analyzer import extract_themes_llm
+    themes = extract_themes_llm(campaign_id=campaign_id, db=db)
+    crud.save_llm_themes(db, campaign_id, themes)
+    return {"themes": themes, "theme_count": len(themes)}
+
+
+@app.post("/campaigns/{campaign_id}/extract-competitor-themes")
+def extract_competitor_themes(
+    campaign_id: int,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """LLM identifies real competitors, fetches Google Play reviews, analyzes strengths/weaknesses."""
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+
+    from .llm_analyzer import analyze_competitors_llm
+    competitor_data = analyze_competitors_llm(campaign_id=campaign_id, db=db)
+    crud.save_llm_competitor_analysis(db, campaign_id, competitor_data)
+    return {"competitor_apps": competitor_data, "competitor_count": len(competitor_data)}
+
+
+@app.post("/campaigns/{campaign_id}/calculate-confidence")
+def calculate_confidence(
+    campaign_id: int,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Return a 0-100% confidence score for the validation data quality."""
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+
+    from .confidence_scorer import ConfidenceScorer
+    scorer = ConfidenceScorer(campaign_id=campaign_id, db=db)
+    result = scorer.calculate_confidence()
+    return result
+
+
+@app.get("/campaigns/{campaign_id}/market-signals")
+def get_market_signals(
+    campaign_id: int,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Derive market signals from data we actually have:
+      - discussion_volume : total posts scraped (proxy for search interest)
+      - trend_direction   : rising/stable/falling from GoogleTrendsPoint data
+      - buying_intent_pct : % of posts classified as buying intent by BART
+      - competitor_saturation : % of low-rated GP reviews (gap in market)
+    """
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+
+    # 1. Discussion volume
+    total_posts = db.query(models.ScrapedData).filter(
+        models.ScrapedData.campaign_id == campaign_id
+    ).count()
+
+    # 2. Trend direction from Google Trends data
+    trends = (
+        db.query(models.GoogleTrendsPoint)
+        .filter(models.GoogleTrendsPoint.campaign_id == campaign_id)
+        .order_by(models.GoogleTrendsPoint.trend_date)
+        .all()
+    )
+    trend_direction = None
+    if len(trends) >= 10:
+        recent = trends[-1].interest
+        baseline = sum(t.interest for t in trends[:10]) / 10
+        if recent > baseline * 1.1:
+            trend_direction = "rising"
+        elif recent < baseline * 0.9:
+            trend_direction = "falling"
+        else:
+            trend_direction = "stable"
+    elif len(trends) >= 2:
+        trend_direction = "rising" if trends[-1].interest > trends[0].interest else (
+            "falling" if trends[-1].interest < trends[0].interest else "stable"
+        )
+
+    # 3. Buying intent % from NLP analysis
+    nlp_rows = (
+        db.query(models.NLPAnalysis)
+        .join(models.ScrapedData, models.ScrapedData.data_id == models.NLPAnalysis.data_id)
+        .filter(models.ScrapedData.campaign_id == campaign_id)
+        .all()
+    )
+    buying_intent_count = sum(1 for r in nlp_rows if r.intent == "buying intent")
+    buying_intent_pct = round(buying_intent_count / len(nlp_rows) * 100, 1) if nlp_rows else 0
+
+    # 4. Competitor saturation from Google Play reviews
+    gp_data = db.query(models.GooglePlayData).filter(
+        models.GooglePlayData.campaign_id == campaign_id
+    ).all()
+    competitor_saturation = None
+    if gp_data:
+        low_rated = sum(1 for r in gp_data if r.review_rating and r.review_rating <= 2)
+        low_pct = low_rated / len(gp_data) * 100
+        competitor_saturation = "low" if low_pct >= 30 else ("medium" if low_pct >= 15 else "high")
+
+    return {
+        "discussion_volume": total_posts,
+        "trend_direction": trend_direction,
+        "buying_intent_pct": buying_intent_pct,
+        "competitor_saturation": competitor_saturation,
+        "has_trends_data": len(trends) > 0,
+        "has_gplay_data": len(gp_data) > 0,
+    }
+
+
+@app.post("/campaigns/{campaign_id}/generate-llm-report")
+def generate_llm_report(
+    campaign_id: int,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Generate a comprehensive written validation report using an LLM."""
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+
+    from .llm_report import generate_llm_report as _gen_report
+    result = _gen_report(campaign_id=campaign_id, db=db)
+    return result
+
+
+@app.post("/campaigns/{campaign_id}/run-trends-scraper", status_code=status.HTTP_202_ACCEPTED)
+def run_trends_scraper(
+    campaign_id: int,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Dispatch the Google Trends scraper Celery task for this campaign.
+    Fetches 12-month interest-over-time for each keyword.
+    Results appear in /market-signals (trend_direction) once the task completes.
+    """
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+    try:
+        scrape_google_trends_for_campaign.delay(campaign_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Could not queue Google Trends task: {e}"
+        )
+    return {"message": "Google Trends scraper queued", "campaign_id": campaign_id}
+
+
+@app.get("/campaigns/{campaign_id}/hackernews-data")
+def get_hackernews_data(
+    campaign_id: int,
+    limit: int = 200,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Return Hacker News posts for a campaign."""
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+
+    return crud.get_scraped_data_for_campaign(
+        db, campaign_id, platform=models.Platform.HACKER_NEWS, limit=limit
+    )
+
+
+@app.get("/campaigns/{campaign_id}/google-play-data")
+def get_google_play_data(
+    campaign_id: int,
+    limit: int = 500,
+    current_user: models.User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+):
+    """Return Google Play competitor reviews for a campaign."""
+    campaign = crud.get_campaign(db, campaign_id, user_id=current_user.user_id)
+    if not campaign:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Campaign not found")
+
+    data = db.query(models.GooglePlayData).filter(
+        models.GooglePlayData.campaign_id == campaign_id
+    ).limit(limit).all()
+    return data

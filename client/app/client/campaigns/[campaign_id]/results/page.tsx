@@ -3,12 +3,31 @@
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { campaignService } from "@/services/campaign.service";
-import { Campaign, ScrapedData, SentimentSummary, ValidationResult } from "@/types/campaign";
+import {
+  Campaign,
+  ScrapedData,
+  SentimentSummary,
+  ValidationResult,
+  ValidationScores,
+  CompetitorAnalysis,
+  Themes,
+  ConfidenceScore,
+  MarketSignals,
+} from "@/types/campaign";
 import { SentimentChart } from "@/components/dashboard/SentimentChart";
 import { ScrapedDataTable } from "@/components/dashboard/ScrapedDataTable";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, RefreshCw, Loader2 } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, RefreshCw, Loader2, Brain } from "lucide-react";
+import { toast } from "sonner";
+import { ValidationScoresTab } from "@/components/dashboard/tabs/ValidationScoresTab";
+import { CompetitorTab } from "@/components/dashboard/tabs/CompetitorTab";
+import { ThemesTab } from "@/components/dashboard/tabs/ThemesTab";
+import { AIReportTab } from "@/components/dashboard/tabs/AIReportTab";
+import { ConfidenceTab } from "@/components/dashboard/tabs/ConfidenceTab";
+import { MarketSignalsTab } from "@/components/dashboard/tabs/MarketSignalsTab";
+import { RawDataTab } from "@/components/dashboard/tabs/RawDataTab";
 
 const INTENT_COLORS: Record<string, string> = {
   "buying intent":     "bg-green-500",
@@ -38,7 +57,7 @@ function ValidationScoreCard({ validation }: { validation: ValidationResult }) {
       <CardHeader>
         <CardTitle className="text-lg">Idea Validation Score</CardTitle>
         <CardDescription>
-          Computed from {validation.positive_mentions + validation.negative_mentions + validation.neutral_mentions} analyzed Reddit posts
+          Computed from {validation.positive_mentions + validation.negative_mentions + validation.neutral_mentions} analyzed posts across all platforms
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -114,7 +133,7 @@ function ProcessingBanner({ status }: { status: string }) {
         <Loader2 className="h-5 w-5 animate-spin text-blue-500 shrink-0" />
         <div>
           <p className="font-medium text-blue-600 dark:text-blue-400">
-            Campaign is {status === "scraping" ? "scraping Reddit posts" : "queued for processing"}…
+            Campaign is {status === "scraping" ? "collecting data from all platforms" : "queued for processing"}…
           </p>
           <p className="text-sm text-muted-foreground">
             This page will update automatically every 5 seconds.
@@ -125,17 +144,59 @@ function ProcessingBanner({ status }: { status: string }) {
   );
 }
 
+function EmptyTabState({
+  title,
+  description,
+  buttonLabel,
+  onAction,
+  loading,
+}: {
+  title: string;
+  description: string;
+  buttonLabel: string;
+  onAction: () => void;
+  loading: boolean;
+}) {
+  return (
+    <Card className="bg-muted/50">
+      <CardContent className="py-16 text-center space-y-4">
+        <div className="text-5xl">🔍</div>
+        <div>
+          <h3 className="font-semibold text-lg">{title}</h3>
+          <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">{description}</p>
+        </div>
+        <Button onClick={onAction} disabled={loading}>
+          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {loading ? "Running..." : buttonLabel}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function CampaignResultsPage() {
   const params = useParams();
   const router = useRouter();
   const campaignId = Number(params.campaign_id);
 
+  // Core state
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [posts, setPosts] = useState<ScrapedData[]>([]);
   const [summary, setSummary] = useState<SentimentSummary | null>(null);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Intelligence layer state
+  const [validationScores, setValidationScores] = useState<ValidationScores | null>(null);
+  const [competitors, setCompetitors] = useState<CompetitorAnalysis>({});
+  const [themes, setThemes] = useState<Themes>({});
+  const [confidence, setConfidence] = useState<ConfidenceScore | null>(null);
+  const [marketSignals, setMarketSignals] = useState<MarketSignals>({});
+
+  // Per-action loading states
+  const [calculatingScores, setCalculatingScores] = useState(false);
+  const [calculatingConfidence, setCalculatingConfidence] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -148,12 +209,18 @@ export default function CampaignResultsPage() {
       setPosts(postsData);
       setSummary(summaryData);
 
-      // Validation result may not exist yet — treat 404 as "not ready"
       try {
         const validationData = await campaignService.getValidationResult(campaignId);
         setValidation(validationData);
       } catch {
         setValidation(null);
+      }
+
+      try {
+        const signals = await campaignService.getMarketSignals(campaignId);
+        setMarketSignals(signals);
+      } catch {
+        // non-fatal — tab stays empty
       }
     } catch (error) {
       console.error("Failed to fetch campaign results:", error);
@@ -163,18 +230,63 @@ export default function CampaignResultsPage() {
     }
   }, [campaignId]);
 
-  // Initial load
   useEffect(() => {
     if (campaignId) fetchData();
   }, [campaignId, fetchData]);
 
-  // Auto-poll every 5 seconds while campaign is still processing
   useEffect(() => {
     if (!campaign) return;
     if (campaign.status !== "pending" && campaign.status !== "scraping") return;
     const interval = setInterval(fetchData, 5000);
     return () => clearInterval(interval);
   }, [campaign?.status, fetchData]);
+
+  // Intelligence layer handlers
+  const handleCalculateValidation = async () => {
+    setCalculatingScores(true);
+    try {
+      const scores = await campaignService.calculateValidationScores(campaignId);
+      setValidationScores(scores);
+      toast.success("Validation scores calculated.");
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail || "Failed to calculate validation scores.");
+    } finally {
+      setCalculatingScores(false);
+    }
+  };
+
+  const handleExtractCompetitors = async () => {
+    try {
+      const data = await campaignService.extractCompetitorThemes(campaignId);
+      setCompetitors(data);
+      toast.success("Competitor analysis complete.");
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail || "Failed to extract competitor analysis.");
+    }
+  };
+
+  const handleExtractThemes = async () => {
+    try {
+      const data = await campaignService.extractThemes(campaignId);
+      setThemes(data);
+      toast.success("Themes extracted.");
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail || "Failed to extract themes.");
+    }
+  };
+
+  const handleCalculateConfidence = async () => {
+    setCalculatingConfidence(true);
+    try {
+      const data = await campaignService.calculateConfidence(campaignId);
+      setConfidence(data);
+      toast.success("Confidence score calculated.");
+    } catch (e: any) {
+      toast.error(e.response?.data?.detail || "Failed to calculate confidence score.");
+    } finally {
+      setCalculatingConfidence(false);
+    }
+  };
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -221,7 +333,7 @@ export default function CampaignResultsPage() {
       {/* Processing banner */}
       {isProcessing && <ProcessingBanner status={campaign.status} />}
 
-      {/* Validation Score — top of page, full width */}
+      {/* Demand Score */}
       {validation && <ValidationScoreCard validation={validation} />}
 
       {/* Sentiment chart + quick stats */}
@@ -294,6 +406,110 @@ export default function CampaignResultsPage() {
 
       {/* Posts table */}
       <ScrapedDataTable posts={posts} />
+
+      {/* ─── Intelligence Layer ─── */}
+      <div className="pt-4 border-t">
+        <div className="flex items-center gap-2 mb-6">
+          <Brain className="h-5 w-5 text-purple-500" />
+          <h2 className="text-xl font-bold">Intelligence Layer</h2>
+          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+            Powered by LLM
+          </span>
+        </div>
+
+        <Tabs defaultValue="validation">
+          <TabsList className="mb-6 flex flex-wrap h-auto gap-1">
+            <TabsTrigger value="validation">Validation Scores</TabsTrigger>
+            <TabsTrigger value="competitors">Competitors</TabsTrigger>
+            <TabsTrigger value="themes">Themes</TabsTrigger>
+            <TabsTrigger value="report">AI Report</TabsTrigger>
+            <TabsTrigger value="confidence">Confidence</TabsTrigger>
+            <TabsTrigger value="market">Market Signals</TabsTrigger>
+            <TabsTrigger value="rawdata">Raw Data</TabsTrigger>
+          </TabsList>
+
+          {/* Validation Scores Tab */}
+          <TabsContent value="validation">
+            {validationScores ? (
+              <ValidationScoresTab
+                scores={validationScores}
+                onCalculate={handleCalculateValidation}
+              />
+            ) : (
+              <EmptyTabState
+                title="8-Dimension Validation Scores"
+                description="Run a rule-based analysis across 8 dimensions: market size, demand, problem clarity, competitor gap, technical feasibility, market growth, pain severity, and monetization potential."
+                buttonLabel="Calculate Scores"
+                onAction={handleCalculateValidation}
+                loading={calculatingScores}
+              />
+            )}
+          </TabsContent>
+
+          {/* Competitors Tab */}
+          <TabsContent value="competitors">
+            <CompetitorTab
+              competitors={competitors}
+              onExtract={handleExtractCompetitors}
+            />
+          </TabsContent>
+
+          {/* Themes Tab */}
+          <TabsContent value="themes">
+            <ThemesTab
+              themes={themes}
+              onExtract={handleExtractThemes}
+            />
+          </TabsContent>
+
+          {/* AI Report Tab */}
+          <TabsContent value="report">
+            <AIReportTab campaignId={campaignId} />
+          </TabsContent>
+
+          {/* Confidence Tab */}
+          <TabsContent value="confidence">
+            {confidence ? (
+              <ConfidenceTab
+                confidence={confidence}
+                onRecalculate={handleCalculateConfidence}
+              />
+            ) : (
+              <EmptyTabState
+                title="Data Quality & Confidence Score"
+                description="Calculate how trustworthy the validation analysis is based on data volume, diversity, freshness, and analysis coverage."
+                buttonLabel="Calculate Confidence"
+                onAction={handleCalculateConfidence}
+                loading={calculatingConfidence}
+              />
+            )}
+          </TabsContent>
+
+          {/* Market Signals Tab */}
+          <TabsContent value="market">
+            <MarketSignalsTab
+              signals={marketSignals}
+              campaignId={campaignId}
+              onAnalyze={async () => {
+                const signals = await campaignService.getMarketSignals(campaignId);
+                setMarketSignals(signals);
+              }}
+            />
+          </TabsContent>
+
+          {/* Raw Data Tab */}
+          <TabsContent value="rawdata">
+            <RawDataTab
+              data={{
+                reddit: posts.filter((p) => p.platform === "reddit" || p.platform === "REDDIT"),
+                hacker_news: posts.filter((p) => p.platform === "hacker_news" || p.platform === "HACKER_NEWS"),
+                google_play: posts.filter((p) => p.platform === "google_play" || p.platform === "GOOGLE_PLAY"),
+              }}
+              onRefresh={async () => { await fetchData(); }}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }

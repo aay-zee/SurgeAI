@@ -76,12 +76,16 @@ def scrape_reddit_for_campaign(campaign_id: int):
         subreddit = reddit.subreddit(combined_subreddits)
 
         # 3. Safe search (handles rate limits + retries)
-        posts = safe_search(subreddit, search_query, limit=10, sort="new")
+        posts = safe_search(subreddit, search_query, limit=100, sort="new")
 
         # 4. Process posts
         for submission in posts:
-            if not submission.is_self:
-                continue
+            # Include both text posts (self) and link posts.
+            # For link posts use the title only — enough signal for NLP.
+            if submission.is_self:
+                content = f"Title: {submission.title}\n\n{submission.selftext}"
+            else:
+                content = f"Title: {submission.title}"
 
             # Create ScrapedData object and save to DB
             scraped_data = models.ScrapedData(
@@ -89,16 +93,13 @@ def scrape_reddit_for_campaign(campaign_id: int):
                 platform=models.Platform.REDDIT,
                 post_id=submission.id,
                 post_url=submission.permalink,
-                content=f"Title: {submission.title}\n\n{submission.selftext}",
+                content=content,
                 author=str(submission.author)
             )
             
             crud.create_scraped_data(db, scraped_data)
         
         print(f"Finished scraping for campaign {campaign_id}")
-            
-
-        crud.update_campaign_status(db, campaign_id, models.CampaignStatus.COMPLETED)
 
     except Exception as e:
         print(f"An error occurred: {e}")

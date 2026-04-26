@@ -22,8 +22,8 @@ interface SentimentChartProps {
 
 export function SentimentChart({ summary }: SentimentChartProps) {
   const data = [
-    { name: 'Positive', value: summary.counts.positive, color: '#22c55e' }, // green-500
-    { name: 'Neutral', value: summary.counts.neutral, color: '#94a3b8' }, // slate-400
+    { name: 'Positive', value: summary.counts.positive, color: '#10b981' }, // emerald-500
+    { name: 'Neutral',  value: summary.counts.neutral,  color: '#f59e0b' }, // amber-400
     { name: 'Negative', value: summary.counts.negative, color: '#ef4444' }, // red-500
   ].filter(item => item.value > 0);
 
@@ -44,7 +44,6 @@ export function SentimentChart({ summary }: SentimentChartProps) {
             cx="50%"
             cy="50%"
             labelLine={false}
-            label={renderCustomizedLabel}
             label={renderCustomizedLabel}
             outerRadius={100}
             innerRadius={60}

@@ -12,7 +12,15 @@ celery_app = Celery(
     "tasks",
     broker=REDIS_URL,
     backend=REDIS_URL,
-    include=['tasks.reddit_scraper', 'tasks.nlp_analysis', 'tasks.validation_engine']
+    include=[
+        'tasks.reddit_scraper',
+        'tasks.hackernews_scraper',
+        'tasks.google_play_scraper',
+        'tasks.google_trends_scraper',
+        'tasks.relevance_filter_task',
+        'tasks.nlp_analysis',
+        'tasks.validation_engine',
+    ]
 )
 
 celery_app.conf.update(

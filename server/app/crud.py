@@ -364,11 +364,15 @@ def get_analysis_by_data_id(db: Session, data_id: int) -> models.NLPAnalysis | N
 
 
 def get_unanalysed_scraped_data_for_campaign(db: Session, campaign_id: int, limit: int = 100):
-    """Return scraped data for a campaign where no NLPAnalysis exists yet."""
+    """Return scraped data for a campaign where no NLPAnalysis exists yet.
+    Only returns posts marked as relevant (is_relevant=True). Posts default
+    to True, so all posts are included if the relevance filter has not run.
+    """
     q = (
         db.query(models.ScrapedData)
         .outerjoin(models.NLPAnalysis, models.NLPAnalysis.data_id == models.ScrapedData.data_id)
         .filter(models.ScrapedData.campaign_id == campaign_id)
+        .filter(models.ScrapedData.is_relevant == True)
         .filter(models.NLPAnalysis.analysis_id.is_(None))
         .order_by(models.ScrapedData.scraped_at.desc())
         .limit(limit)
@@ -404,7 +408,9 @@ def get_campaign_sentiment_summary(db: Session, campaign_id: int):
 
     counts = {"positive": 0, "neutral": 0, "negative": 0}
     for label, cnt in counts_q.all():
-        counts[str(label)] = cnt
+        key = label.value if hasattr(label, "value") else str(label)
+        if key in counts:
+            counts[key] = cnt
 
     def pct(c):
         return (c / total * 100.0) if total > 0 else 0.0
@@ -415,4 +421,136 @@ def get_campaign_sentiment_summary(db: Session, campaign_id: int):
         "total": total,
     }
     return summary
+
+
+# ─────────────────── Intelligence Layer CRUD ───────────────────
+
+def create_or_update_nlp_analysis(db: Session, analysis_in: schemas.NLPAnalysisCreate) -> models.NLPAnalysis:
+    """Upsert NLPAnalysis — update if exists, create if not."""
+    existing = db.query(models.NLPAnalysis).filter(
+        models.NLPAnalysis.data_id == analysis_in.data_id
+    ).first()
+    if existing:
+        for k, v in analysis_in.model_dump().items():
+            setattr(existing, k, v)
+        db.commit()
+        db.refresh(existing)
+        return existing
+    return create_nlp_analysis(db, analysis_in)
+
+
+def create_hackernews_data(db: Session, hn_data: models.HackerNewsData):
+    """Insert a HackerNewsData row, skip if source_post_id already exists for this campaign."""
+    exists = db.query(models.HackerNewsData).filter(
+        models.HackerNewsData.campaign_id == hn_data.campaign_id,
+        models.HackerNewsData.source_post_id == hn_data.source_post_id,
+    ).first()
+    if not exists:
+        db.add(hn_data)
+        db.commit()
+        db.refresh(hn_data)
+        return hn_data
+    return None
+
+
+def create_google_play_data(db: Session, gp_data: models.GooglePlayData):
+    """Insert a GooglePlayData row, skip if review_id already exists for this campaign."""
+    exists = db.query(models.GooglePlayData).filter(
+        models.GooglePlayData.campaign_id == gp_data.campaign_id,
+        models.GooglePlayData.review_id == gp_data.review_id,
+    ).first()
+    if not exists:
+        db.add(gp_data)
+        db.commit()
+        db.refresh(gp_data)
+        return gp_data
+    return None
+
+
+def create_or_update_validation_score(db: Session, vs: models.ValidationScore) -> models.ValidationScore:
+    """Upsert ValidationScore — one record per campaign."""
+    existing = db.query(models.ValidationScore).filter(
+        models.ValidationScore.campaign_id == vs.campaign_id
+    ).first()
+    if existing:
+        for col in ["market_size", "demand", "problem_clarity", "competitor_gap",
+                    "technical_feasibility", "market_growth", "pain_point_severity",
+                    "monetization_potential", "overall_score",
+                    "market_size_reason", "demand_reason", "problem_clarity_reason",
+                    "competitor_gap_reason", "technical_feasibility_reason",
+                    "market_growth_reason", "pain_point_severity_reason",
+                    "monetization_potential_reason"]:
+            setattr(existing, col, getattr(vs, col))
+        db.commit()
+        db.refresh(existing)
+        return existing
+    db.add(vs)
+    db.commit()
+    db.refresh(vs)
+    return vs
+
+
+def get_validation_score(db: Session, campaign_id: int) -> models.ValidationScore | None:
+    return db.query(models.ValidationScore).filter(
+        models.ValidationScore.campaign_id == campaign_id
+    ).first()
+
+
+def create_google_trends_points_bulk(db: Session, campaign_id: int, points: list[dict]) -> int:
+    """Upsert Google Trends points. Returns count of rows inserted/updated."""
+    count = 0
+    for point in points:
+        existing = db.query(models.GoogleTrendsPoint).filter(
+            models.GoogleTrendsPoint.campaign_id == campaign_id,
+            models.GoogleTrendsPoint.keyword_id == point.get("keyword_id"),
+            models.GoogleTrendsPoint.region == point.get("region", "GLOBAL"),
+            models.GoogleTrendsPoint.trend_date == point.get("trend_date"),
+        ).first()
+        if existing:
+            existing.interest = point.get("interest", 0)
+            existing.is_partial = point.get("is_partial", False)
+        else:
+            db.add(models.GoogleTrendsPoint(
+                campaign_id=campaign_id,
+                keyword_id=point.get("keyword_id"),
+                region=point.get("region", "GLOBAL"),
+                trend_date=point.get("trend_date"),
+                interest=point.get("interest", 0),
+                is_partial=point.get("is_partial", False),
+            ))
+        count += 1
+    db.commit()
+    return count
+
+
+def get_llm_analysis(db: Session, campaign_id: int) -> models.LLMAnalysis | None:
+    return db.query(models.LLMAnalysis).filter(
+        models.LLMAnalysis.campaign_id == campaign_id
+    ).first()
+
+
+def save_llm_themes(db: Session, campaign_id: int, themes: dict) -> models.LLMAnalysis:
+    """Save extracted themes to LLMAnalysis table."""
+    llm = get_llm_analysis(db, campaign_id)
+    if llm:
+        llm.themes = themes
+    else:
+        llm = models.LLMAnalysis(campaign_id=campaign_id, themes=themes)
+        db.add(llm)
+    db.commit()
+    db.refresh(llm)
+    return llm
+
+
+def save_llm_competitor_analysis(db: Session, campaign_id: int, competitor_data: dict) -> models.LLMAnalysis:
+    """Save competitor analysis to LLMAnalysis table."""
+    llm = get_llm_analysis(db, campaign_id)
+    if llm:
+        llm.competitor_analysis = competitor_data
+    else:
+        llm = models.LLMAnalysis(campaign_id=campaign_id, competitor_analysis=competitor_data)
+        db.add(llm)
+    db.commit()
+    db.refresh(llm)
+    return llm
 
